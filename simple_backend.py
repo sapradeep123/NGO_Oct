@@ -771,6 +771,44 @@ async def reject_cause(cause_id: int, reason: str = Form(...)):
         "message": "Cause rejected"
     }
 
+@app.post("/ngo/causes")
+async def create_ngo_cause(
+    title: str = Form(...),
+    description: str = Form(...),
+    target_amount: int = Form(...),
+    category_id: int = Form(...),
+    ngo_id: int = Form(...),  # Single NGO ID for NGO admin
+    image_url: str = Form(None),
+    type: str = Form("NGO_MANAGED")
+):
+    """Create a new cause for NGO admin (single NGO)"""
+    new_id = max([cause["id"] for cause in causes_storage + pending_causes_storage], default=0) + 1
+    
+    # Find category name
+    category = next((cat for cat in categories_storage if cat["id"] == category_id), None)
+    
+    # Find NGO name
+    ngo = next((ngo for ngo in ngos_storage if ngo["id"] == ngo_id), None)
+    
+    new_cause = {
+        "id": new_id,
+        "title": title,
+        "description": description,
+        "target_amount": target_amount,
+        "current_amount": 0,
+        "status": "PENDING_APPROVAL",
+        "category_id": category_id,
+        "ngo_ids": [ngo_id],  # Single NGO for NGO admin
+        "image_url": image_url or f"https://picsum.photos/400/300?random={hash(title) % 1000}",
+        "created_at": datetime.now().isoformat() + "Z",
+        "ngo_names": [ngo["name"]] if ngo else ["Unknown NGO"],
+        "category_name": category["name"] if category else "Unknown Category",
+        "donation_count": 0,
+        "type": type
+    }
+    pending_causes_storage.append(new_cause)
+    return new_cause
+
 @app.get("/admin/pending-causes")
 async def get_pending_causes():
     """Get all causes pending approval"""

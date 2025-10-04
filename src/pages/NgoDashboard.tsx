@@ -48,7 +48,9 @@ const NgoDashboard: React.FC = () => {
     description: '',
     target_amount: '',
     category_id: '',
-    type: 'VENDOR' as 'VENDOR' | 'NGO_MANAGED'
+    type: 'VENDOR' as 'VENDOR' | 'NGO_MANAGED',
+    image_url: '',  // Added image URL field
+    ngo_id: 1  // Default NGO ID for Hope Trust
   })
 
   // Fetch causes
@@ -102,15 +104,17 @@ const NgoDashboard: React.FC = () => {
   // Create cause mutation
   const createCauseMutation = useMutation({
     mutationFn: async (causeData: any) => {
-      // Mock API call - replace with actual implementation
-      console.log('Creating cause:', causeData)
-      return { id: Date.now(), ...causeData }
+      return apiClient.createNgoCause(causeData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ngo-causes'] })
       setCreateCauseOpen(false)
-      setNewCause({ title: '', description: '', target_amount: '', category_id: '', type: 'VENDOR' })
+      setNewCause({ title: '', description: '', target_amount: '', category_id: '', type: 'VENDOR', image_url: '', ngo_id: 1 })
     },
+    onError: (error) => {
+      console.error('Error creating cause:', error)
+      alert('Failed to create cause. Please try again.')
+    }
   })
 
   // Approve invoice mutation
@@ -314,6 +318,7 @@ const NgoDashboard: React.FC = () => {
               <Tab label="Causes" />
               <Tab label="Vendor Invoices" />
               <Tab label="NGO Receipts" />
+              <Tab label="Gallery Management" />
               <Tab label="Microsite Settings" />
             </Tabs>
           </Box>
@@ -382,6 +387,110 @@ const NgoDashboard: React.FC = () => {
           <TabPanel value={tabValue} index={3}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
+                Photo Gallery Management
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => {
+                  const imageUrl = prompt('Enter image URL:')
+                  if (imageUrl) {
+                    // Add to gallery logic here
+                    alert(`Image added to gallery: ${imageUrl}`)
+                  }
+                }}
+              >
+                Add Photo
+              </Button>
+            </Box>
+            
+            <Grid container spacing={2}>
+              {/* Sample gallery images */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <img 
+                      src="https://picsum.photos/300/200?random=101" 
+                      alt="Gallery Image 1"
+                      style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8 }}
+                    />
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        School Building
+                      </Typography>
+                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                        Delete
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <img 
+                      src="https://picsum.photos/300/200?random=102" 
+                      alt="Gallery Image 2"
+                      style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8 }}
+                    />
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Medical Camp
+                      </Typography>
+                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                        Delete
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <img 
+                      src="https://picsum.photos/300/200?random=103" 
+                      alt="Gallery Image 3"
+                      style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8 }}
+                    />
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Food Distribution
+                      </Typography>
+                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                        Delete
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={3}>
+                <Card>
+                  <CardContent>
+                    <img 
+                      src="https://picsum.photos/300/200?random=104" 
+                      alt="Gallery Image 4"
+                      style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 8 }}
+                    />
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Children Learning
+                      </Typography>
+                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                        Delete
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={4}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
                 Microsite Settings
               </Typography>
               <Button
@@ -393,9 +502,100 @@ const NgoDashboard: React.FC = () => {
               </Button>
             </Box>
 
-            <Alert severity="info">
+            <Alert severity="info" sx={{ mb: 3 }}>
               Configure your custom domain to create a microsite for your NGO. This will allow donors to visit your dedicated page.
             </Alert>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Current Microsite
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Your NGO microsite URL:
+                    </Typography>
+                    <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1, mb: 2 }}>
+                      <Typography variant="body1" sx={{ fontFamily: 'monospace' }}>
+                        https://hope-trust.ngoplatform.com
+                      </Typography>
+                    </Box>
+                    <Button 
+                      variant="outlined" 
+                      onClick={() => window.open('https://hope-trust.ngoplatform.com', '_blank')}
+                      sx={{ mr: 1 }}
+                    >
+                      Visit Microsite
+                    </Button>
+                    <Button variant="outlined" color="secondary">
+                      Preview
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Custom Domain Settings
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      label="Custom Domain"
+                      placeholder="yourngo.com"
+                      sx={{ mb: 2 }}
+                    />
+                    <TextField
+                      fullWidth
+                      label="Subdomain"
+                      placeholder="hope-trust"
+                      sx={{ mb: 2 }}
+                    />
+                    <Button variant="contained" fullWidth>
+                      Configure Custom Domain
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Microsite Features
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{ textAlign: 'center', p: 2 }}>
+                          <Typography variant="h4" color="primary">✓</Typography>
+                          <Typography variant="body2">Custom Branding</Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{ textAlign: 'center', p: 2 }}>
+                          <Typography variant="h4" color="primary">✓</Typography>
+                          <Typography variant="body2">Cause Showcase</Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{ textAlign: 'center', p: 2 }}>
+                          <Typography variant="h4" color="primary">✓</Typography>
+                          <Typography variant="body2">Donation Tracking</Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{ textAlign: 'center', p: 2 }}>
+                          <Typography variant="h4" color="primary">✓</Typography>
+                          <Typography variant="body2">Impact Reports</Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </TabPanel>
         </Card>
 
@@ -440,7 +640,7 @@ const NgoDashboard: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
-            <FormControl fullWidth>
+            <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Type</InputLabel>
               <Select
                 value={newCause.type}
@@ -450,6 +650,14 @@ const NgoDashboard: React.FC = () => {
                 <MenuItem value="NGO_MANAGED">NGO Managed</MenuItem>
               </Select>
             </FormControl>
+            <TextField
+              fullWidth
+              label="Image URL (Optional)"
+              value={newCause.image_url}
+              onChange={(e) => setNewCause({ ...newCause, image_url: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+              sx={{ mb: 2 }}
+            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCreateCauseOpen(false)}>Cancel</Button>

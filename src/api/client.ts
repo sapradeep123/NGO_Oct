@@ -381,6 +381,19 @@ class ApiClient {
     return response.data
   }
 
+  async createNgoCause(data: any): Promise<any> {
+    const formData = new FormData()
+    Object.keys(data).forEach(key => {
+      if (data[key] !== null && data[key] !== undefined) {
+        formData.append(key, data[key])
+      }
+    })
+    const response = await this.client.post('/ngo/causes', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  }
+
   async getPendingCauses(): Promise<any[]> {
     const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/pending-causes')
     return response.data.value || []
