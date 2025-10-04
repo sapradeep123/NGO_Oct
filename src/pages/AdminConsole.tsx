@@ -1,0 +1,1239 @@
+import React, { useState } from 'react'
+import {
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  Box,
+  Grid,
+  Button,
+  Chip,
+  CircularProgress,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  LinearProgress,
+  Avatar,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Divider,
+} from '@mui/material'
+import { 
+  Category, 
+  CheckCircle,
+  Cancel,
+  AttachMoney,
+  Security,
+  Verified,
+  Store,
+  AccountBalance,
+  Person,
+} from '@mui/icons-material'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiClient } from '../api/client'
+import DataTable from '../components/DataTable'
+
+const AdminConsole: React.FC = () => {
+  const queryClient = useQueryClient()
+  const [tabValue, setTabValue] = useState(0)
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
+  const [createCauseOpen, setCreateCauseOpen] = useState(false)
+  const [createNGOOpen, setCreateNGOOpen] = useState(false)
+  const [createVendorOpen, setCreateVendorOpen] = useState(false)
+  const [createAssociationOpen, setCreateAssociationOpen] = useState(false)
+  const [newCategory, setNewCategory] = useState({ name: '', description: '' })
+  const [newCause, setNewCause] = useState({ 
+    title: '', 
+    description: '', 
+    target_amount: '', 
+    category_id: '', 
+    ngo_id: '' 
+  })
+  const [newNGO, setNewNGO] = useState({ 
+    name: '', 
+    description: '', 
+    contact_email: '', 
+    website_url: '' 
+  })
+  const [newVendor, setNewVendor] = useState({ 
+    name: '', 
+    gstin: '', 
+    contact_email: '', 
+    phone: '', 
+    address: '' 
+  })
+  const [newAssociation, setNewAssociation] = useState({
+    ngo_id: '',
+    vendor_id: '',
+    category_id: ''
+  })
+
+  // Fetch categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => apiClient.getCategories(),
+  })
+
+  // Fetch NGOs
+  const { data: ngos = [], isLoading: ngosLoading } = useQuery({
+    queryKey: ['admin-ngos'],
+    queryFn: () => apiClient.getAdminNGOs(),
+  })
+
+  // Fetch vendors
+  const { data: vendors = [], isLoading: vendorsLoading } = useQuery({
+    queryKey: ['admin-vendors'],
+    queryFn: () => apiClient.getAdminVendors(),
+  })
+
+  // Fetch donors
+  const { data: donors = [], isLoading: donorsLoading } = useQuery({
+    queryKey: ['admin-donors'],
+    queryFn: () => apiClient.getAdminDonors(),
+  })
+
+  // Fetch payment summary
+  const { data: paymentSummary = {} } = useQuery({
+    queryKey: ['admin-payments'],
+    queryFn: () => apiClient.getAdminPayments(),
+  })
+
+  // Fetch pending causes
+  const { data: pendingCauses = [], isLoading: pendingCausesLoading } = useQuery({
+    queryKey: ['admin-pending-causes'],
+    queryFn: () => apiClient.getPendingCauses(),
+  })
+
+  // Fetch NGO-Vendor associations
+  const { data: associations = [], isLoading: associationsLoading } = useQuery({
+    queryKey: ['ngo-vendor-associations'],
+    queryFn: () => apiClient.getNgoVendorAssociations(),
+  })
+
+  // Create category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (categoryData: any) => {
+      return apiClient.createCategory(categoryData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] })
+      setCreateCategoryOpen(false)
+      setNewCategory({ name: '', description: '' })
+    },
+  })
+
+  // Create cause mutation
+  const createCauseMutation = useMutation({
+    mutationFn: async (causeData: any) => {
+      return apiClient.createCause(causeData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-pending-causes'] })
+      queryClient.invalidateQueries({ queryKey: ['causes'] })
+      setCreateCauseOpen(false)
+      setNewCause({ title: '', description: '', target_amount: '', category_id: '', ngo_id: '' })
+    },
+  })
+
+  // Create NGO mutation
+  const createNGOMutation = useMutation({
+    mutationFn: async (ngoData: any) => {
+      return apiClient.createNGO(ngoData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ngos'] })
+      queryClient.invalidateQueries({ queryKey: ['ngos'] })
+      setCreateNGOOpen(false)
+      setNewNGO({ name: '', description: '', contact_email: '', website_url: '' })
+    },
+  })
+
+  // Create vendor mutation
+  const createVendorMutation = useMutation({
+    mutationFn: async (vendorData: any) => {
+      return apiClient.createVendor(vendorData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-vendors'] })
+      queryClient.invalidateQueries({ queryKey: ['vendors'] })
+      setCreateVendorOpen(false)
+      setNewVendor({ name: '', gstin: '', contact_email: '', phone: '', address: '' })
+    },
+  })
+
+  // Create association mutation
+  const createAssociationMutation = useMutation({
+    mutationFn: async (associationData: any) => {
+      return apiClient.createNgoVendorAssociation(
+        parseInt(associationData.ngo_id),
+        parseInt(associationData.vendor_id),
+        parseInt(associationData.category_id)
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ngo-vendor-associations'] })
+      setCreateAssociationOpen(false)
+      setNewAssociation({ ngo_id: '', vendor_id: '', category_id: '' })
+    },
+  })
+
+  // Delete association mutation
+  const deleteAssociationMutation = useMutation({
+    mutationFn: async (associationId: number) => {
+      return apiClient.deleteNgoVendorAssociation(associationId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ngo-vendor-associations'] })
+    },
+  })
+
+  // Approve cause mutation
+  const approveCauseMutation = useMutation({
+    mutationFn: async (causeId: number) => {
+      return apiClient.approveCause(causeId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-pending-causes'] })
+    },
+  })
+
+  // Reject cause mutation
+  const rejectCauseMutation = useMutation({
+    mutationFn: async ({ causeId, reason }: { causeId: number, reason: string }) => {
+      return apiClient.rejectCause(causeId, reason)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-pending-causes'] })
+    },
+  })
+
+  const handleCreateCategory = () => {
+    createCategoryMutation.mutate(newCategory)
+  }
+
+  const handleCreateCause = () => {
+    createCauseMutation.mutate(newCause)
+  }
+
+  const handleCreateNGO = () => {
+    createNGOMutation.mutate(newNGO)
+  }
+
+  const handleCreateVendor = () => {
+    createVendorMutation.mutate(newVendor)
+  }
+
+  const handleCreateAssociation = () => {
+    createAssociationMutation.mutate(newAssociation)
+  }
+
+  const handleDeleteAssociation = (associationId: number) => {
+    deleteAssociationMutation.mutate(associationId)
+  }
+
+  const TabPanel = ({ children, value, index }: { children: React.ReactNode, value: number, index: number }) => (
+    <div hidden={value !== index}>
+      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
+    </div>
+  )
+
+  return (
+    <Box sx={{ backgroundColor: '#F7F7F7', minHeight: '100vh', py: 3 }}>
+      <Container maxWidth="xl">
+        {/* Dashboard Header */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
+            Admin Console
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage platform operations, approve receipts, and monitor system health
+          </Typography>
+        </Box>
+
+        {/* Key Metrics Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: '#F9FAFB',
+              color: '#1F2937',
+              border: '1px solid #E5E7EB',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)' }
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      ₹{paymentSummary.total_donations?.toLocaleString() || '0'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Total Donations
+                    </Typography>
+                  </Box>
+                  <AttachMoney sx={{ fontSize: 40, opacity: 0.9 }} />
+                </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      {paymentSummary.monthly_stats?.growth_percentage ? `+${paymentSummary.monthly_stats.growth_percentage}% from last month` : '+0% from last month'}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+              color: '#1F2937',
+              border: '1px solid #D1D5DB',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)' }
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      {pendingCauses.length}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Pending Causes
+                    </Typography>
+                  </Box>
+                  <CheckCircle sx={{ fontSize: 40, opacity: 0.9 }} />
+                </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Awaiting approval
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+              color: '#1F2937',
+              border: '1px solid #D1D5DB',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)' }
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      {categories.length}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Active Categories
+                    </Typography>
+                  </Box>
+                  <Category sx={{ fontSize: 40, opacity: 0.9 }} />
+                </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    +1 this month
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ 
+              background: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+              color: '#1F2937',
+              border: '1px solid #D1D5DB',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 25px rgba(0, 0, 0, 0.1)' }
+            }}>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      {vendors.length}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Registered Vendors
+                    </Typography>
+                  </Box>
+                  <Store sx={{ fontSize: 40, opacity: 0.9 }} />
+                </Box>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                      Service providers
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Workflow Overview */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1F2937' }}>
+              📋 Complete Workflow Overview
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={3}>
+                <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#059669' }}>1</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Categories</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {categories.length} categories defined
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Food & Nutrition, Education, Healthcare, Emergency Relief, Women & Children
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2563EB' }}>2</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>NGOs</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {ngos.length} registered NGOs
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Hope Trust, Care Works, Health First Foundation
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#7C3AED' }}>3</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Vendors</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {vendors.length} registered vendors
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Alpha Supplies, Beta Medical, Gamma Educational
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#DC2626' }}>4</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Causes</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {pendingCauses.length} pending approval
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Only approved causes visible to donors
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1F2937' }}>
+              Quick Actions
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<CheckCircle />}
+                  sx={{ 
+                    backgroundColor: '#059669',
+                    py: 1.5,
+                    fontWeight: 'bold',
+                    '&:hover': { backgroundColor: '#047857' }
+                  }}
+                  onClick={() => setCreateCauseOpen(true)}
+                >
+                  Approve Causes
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<AccountBalance />}
+                  sx={{ 
+                    backgroundColor: '#2563EB',
+                    py: 1.5,
+                    fontWeight: 'bold',
+                    '&:hover': { backgroundColor: '#1D4ED8' }
+                  }}
+                  onClick={() => setTabValue(1)}
+                >
+                  Manage NGOs
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<Store />}
+                  sx={{ 
+                    backgroundColor: '#7C3AED',
+                    py: 1.5,
+                    fontWeight: 'bold',
+                    '&:hover': { backgroundColor: '#6D28D9' }
+                  }}
+                  onClick={() => setTabValue(2)}
+                >
+                  Manage Vendors
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<Category />}
+                  sx={{ 
+                    backgroundColor: '#DC2626',
+                    py: 1.5,
+                    fontWeight: 'bold',
+                    '&:hover': { backgroundColor: '#B91C1C' }
+                  }}
+                  onClick={() => setTabValue(4)}
+                >
+                  Manage Categories
+                </Button>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* Account Reconciliation */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1F2937' }}>
+              💰 Account Reconciliation & Reporting
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Financial Summary
+                </Typography>
+                <Box sx={{ backgroundColor: '#F9FAFB', p: 2, borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">Total Received:</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      ₹{paymentSummary.reconciliation?.total_received?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">Total Disbursed:</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      ₹{paymentSummary.reconciliation?.total_disbursed?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">Platform Commission:</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      ₹{paymentSummary.reconciliation?.platform_commission?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2">Pending Disbursements:</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#DC2626' }}>
+                      ₹{paymentSummary.reconciliation?.pending_disbursements?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+                  <Divider sx={{ my: 1 }} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Account Balance:</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#059669' }}>
+                      ₹{paymentSummary.reconciliation?.account_balance?.toLocaleString() || '0'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  Category Breakdown
+                </Typography>
+                <Box sx={{ backgroundColor: '#F9FAFB', p: 2, borderRadius: 2 }}>
+                  {paymentSummary.category_breakdown && Object.entries(paymentSummary.category_breakdown).map(([category, amount]) => (
+                    <Box key={category} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2">{category}:</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        ₹{(amount as number).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Grid>
+            </Grid>
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="caption" color="text.secondary">
+                Last Reconciliation: {paymentSummary.reconciliation?.last_reconciliation ? 
+                  new Date(paymentSummary.reconciliation.last_reconciliation).toLocaleString() : 'Never'}
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1F2937' }}>
+                  Recent Activity
+                </Typography>
+                <List>
+                  <ListItem>
+                    <ListItemAvatar>
+                      <Avatar sx={{ backgroundColor: '#059669' }}>
+                        <CheckCircle />
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary="Receipt approved for Hope Trust"
+                      secondary="2 hours ago"
+                      primaryTypographyProps={{ fontWeight: 500 }}
+                    />
+                  </ListItem>
+                  <Divider />
+                  <ListItem>
+                    <ListItemAvatar>
+                      <Avatar sx={{ backgroundColor: '#2563EB' }}>
+                        <Verified />
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary="New NGO registered: Care Works"
+                      secondary="4 hours ago"
+                      primaryTypographyProps={{ fontWeight: 500 }}
+                    />
+                  </ListItem>
+                  <Divider />
+                  <ListItem>
+                    <ListItemAvatar>
+                      <Avatar sx={{ backgroundColor: '#7C3AED' }}>
+                        <Category />
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary="New category added: Environment"
+                      secondary="1 day ago"
+                      primaryTypographyProps={{ fontWeight: 500 }}
+                    />
+                  </ListItem>
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, color: '#1F2937' }}>
+                  System Health
+                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>Database Performance</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#059669' }}>98%</Typography>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={98}
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      backgroundColor: '#E5E7EB',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#059669'
+                      }
+                    }}
+                  />
+                </Box>
+                
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>API Response Time</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#2563EB' }}>45ms</Typography>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={85}
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      backgroundColor: '#E5E7EB',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#2563EB'
+                      }
+                    }}
+                  />
+                </Box>
+                
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>Storage Usage</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#7C3AED' }}>67%</Typography>
+                  </Box>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={67}
+                    sx={{ 
+                      height: 8, 
+                      borderRadius: 4,
+                      backgroundColor: '#E5E7EB',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: '#7C3AED'
+                      }
+                    }}
+                  />
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Security sx={{ color: '#059669' }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    All systems operational
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Main Content Tabs */}
+        <Card>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+              <Tab label="Pending Causes" icon={<CheckCircle />} iconPosition="start" />
+              <Tab label="NGOs" icon={<AccountBalance />} iconPosition="start" />
+              <Tab label="Vendors" icon={<Store />} iconPosition="start" />
+              <Tab label="Donors" icon={<Person />} iconPosition="start" />
+              <Tab label="Categories" icon={<Category />} iconPosition="start" />
+              <Tab label="NGO-Vendor Associations" icon={<Verified />} iconPosition="start" />
+            </Tabs>
+          </Box>
+
+          <TabPanel value={tabValue} index={0}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Causes Pending Approval
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<CheckCircle />}
+                onClick={() => setCreateCauseOpen(true)}
+                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
+              >
+                Create Cause
+              </Button>
+            </Box>
+
+            <DataTable
+              rows={pendingCauses}
+              columns={[
+                { field: 'id', headerName: 'ID', width: 80 },
+                { field: 'title', headerName: 'Cause Title', width: 200 },
+                { field: 'ngo_name', headerName: 'NGO', width: 150 },
+                { field: 'category_name', headerName: 'Category', width: 150 },
+                { field: 'target_amount', headerName: 'Target Amount', width: 150, renderCell: (params: any) => 
+                  `₹${params.value?.toLocaleString() || '0'}`
+                },
+                { field: 'status', headerName: 'Status', width: 150, renderCell: (params: any) => (
+                  <Chip 
+                    label={params.value} 
+                    color={params.value === 'PENDING_APPROVAL' ? 'warning' : 'default'}
+                    size="small"
+                  />
+                )},
+                { field: 'created_at', headerName: 'Created', width: 150, renderCell: (params: any) => 
+                  new Date(params.value).toLocaleDateString()
+                },
+              ]}
+              actions={[
+                {
+                  icon: <CheckCircle />,
+                  label: 'Approve',
+                  onClick: (params: any) => {
+                    approveCauseMutation.mutate(params.id)
+                  }
+                },
+                {
+                  icon: <Cancel />,
+                  label: 'Reject',
+                  onClick: (params: any) => {
+                    const reason = prompt('Reason for rejection:')
+                    if (reason) {
+                      rejectCauseMutation.mutate({ causeId: params.id, reason })
+                    }
+                  }
+                }
+              ]}
+              loading={pendingCausesLoading}
+            />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Registered NGOs
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AccountBalance />}
+                onClick={() => setCreateNGOOpen(true)}
+                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
+              >
+                Add NGO
+              </Button>
+            </Box>
+
+            <DataTable
+              rows={ngos}
+              columns={[
+                { field: 'id', headerName: 'ID', width: 80 },
+                { field: 'name', headerName: 'NGO Name', width: 200 },
+                { field: 'contact_email', headerName: 'Email', width: 200 },
+                { field: 'status', headerName: 'Status', width: 120, renderCell: (params: any) => (
+                  <Chip 
+                    label={params.value} 
+                    color={params.value === 'ACTIVE' ? 'success' : 'default'}
+                    size="small"
+                  />
+                )},
+                { field: 'total_donations', headerName: 'Total Donations', width: 150, renderCell: (params: any) => 
+                  `₹${params.value?.toLocaleString() || '0'}`
+                },
+                { field: 'total_causes', headerName: 'Causes', width: 100 },
+                { field: 'verified', headerName: 'Verified', width: 100, renderCell: (params: any) => 
+                  params.value ? 'Yes' : 'No'
+                },
+              ]}
+              loading={ngosLoading}
+            />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={2}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Registered Vendors
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Store />}
+                onClick={() => setCreateVendorOpen(true)}
+                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
+              >
+                Add Vendor
+              </Button>
+            </Box>
+
+            <DataTable
+              rows={vendors}
+              columns={[
+                { field: 'id', headerName: 'ID', width: 80 },
+                { field: 'name', headerName: 'Vendor Name', width: 200 },
+                { field: 'gstin', headerName: 'GSTIN', width: 150 },
+                { field: 'kyc_status', headerName: 'KYC Status', width: 120, renderCell: (params: any) => (
+                  <Chip 
+                    label={params.value} 
+                    color={params.value === 'VERIFIED' ? 'success' : params.value === 'PENDING' ? 'warning' : 'default'}
+                    size="small"
+                  />
+                )},
+                { field: 'tenant_name', headerName: 'NGO', width: 150 },
+                { field: 'total_invoices', headerName: 'Invoices', width: 100 },
+                { field: 'total_amount', headerName: 'Total Amount', width: 150, renderCell: (params: any) => 
+                  `₹${params.value?.toLocaleString() || '0'}`
+                },
+              ]}
+              loading={vendorsLoading}
+            />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Registered Donors
+              </Typography>
+            </Box>
+
+            <DataTable
+              rows={donors}
+              columns={[
+                { field: 'id', headerName: 'ID', width: 80 },
+                { field: 'first_name', headerName: 'First Name', width: 150 },
+                { field: 'last_name', headerName: 'Last Name', width: 150 },
+                { field: 'email', headerName: 'Email', width: 200 },
+                { field: 'phone', headerName: 'Phone', width: 150 },
+                { field: 'total_donations', headerName: 'Total Donations', width: 150, renderCell: (params: any) => 
+                  `₹${params.value?.toLocaleString() || '0'}`
+                },
+                { field: 'total_causes_supported', headerName: 'Causes Supported', width: 150 },
+                { field: 'last_donation_date', headerName: 'Last Donation', width: 150, renderCell: (params: any) => 
+                  params.value ? new Date(params.value).toLocaleDateString() : 'Never'
+                },
+              ]}
+              loading={donorsLoading}
+            />
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={4}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Cause Categories
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Category />}
+                onClick={() => setCreateCategoryOpen(true)}
+                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
+              >
+                Add Category
+              </Button>
+            </Box>
+
+            <Grid container spacing={2}>
+              {categories.map((category) => (
+                <Grid item xs={12} sm={6} md={4} key={category.id}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6" component="h2" gutterBottom>
+                        {category.name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {category.description}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={5}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                NGO-Vendor Associations
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Verified />}
+                onClick={() => setCreateAssociationOpen(true)}
+                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
+              >
+                Create Association
+              </Button>
+            </Box>
+
+            <DataTable
+              rows={associations}
+              columns={[
+                { field: 'id', headerName: 'ID', width: 80 },
+                { field: 'ngo_name', headerName: 'NGO', width: 200 },
+                { field: 'vendor_name', headerName: 'Vendor', width: 200 },
+                { field: 'category_name', headerName: 'Category', width: 150 },
+                { field: 'status', headerName: 'Status', width: 120, renderCell: (params: any) => (
+                  <Chip 
+                    label={params.value} 
+                    color={params.value === 'ACTIVE' ? 'success' : 'default'}
+                    size="small"
+                  />
+                )},
+                { field: 'created_at', headerName: 'Created', width: 150, renderCell: (params: any) => 
+                  new Date(params.value).toLocaleDateString()
+                },
+                { 
+                  field: 'actions', 
+                  headerName: 'Actions', 
+                  width: 120, 
+                  renderCell: (params: any) => (
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteAssociation(params.row.id)}
+                      disabled={deleteAssociationMutation.isPending}
+                    >
+                      Delete
+                    </Button>
+                  )
+                }
+              ]}
+              loading={associationsLoading}
+            />
+          </TabPanel>
+        </Card>
+
+        {/* Create Category Dialog */}
+        <Dialog open={createCategoryOpen} onClose={() => setCreateCategoryOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Create New Category</DialogTitle>
+          <DialogContent>
+            <TextField
+              fullWidth
+              label="Category Name"
+              value={newCategory.name}
+              onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+              sx={{ mb: 2, mt: 1 }}
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={newCategory.description}
+              onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateCategoryOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateCategory} 
+              variant="contained"
+              disabled={createCategoryMutation.isPending || !newCategory.name}
+            >
+              {createCategoryMutation.isPending ? <CircularProgress size={20} /> : 'Create Category'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Cause Dialog */}
+        <Dialog open={createCauseOpen} onClose={() => setCreateCauseOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Create New Cause</DialogTitle>
+          <DialogContent>
+            <TextField
+              fullWidth
+              label="Cause Title"
+              value={newCause.title}
+              onChange={(e) => setNewCause({ ...newCause, title: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={newCause.description}
+              onChange={(e) => setNewCause({ ...newCause, description: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Target Amount (₹)"
+              type="number"
+              value={newCause.target_amount}
+              onChange={(e) => setNewCause({ ...newCause, target_amount: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={newCause.category_id}
+                onChange={(e) => setNewCause({ ...newCause, category_id: e.target.value })}
+                label="Category"
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>NGO</InputLabel>
+              <Select
+                value={newCause.ngo_id}
+                onChange={(e) => setNewCause({ ...newCause, ngo_id: e.target.value })}
+                label="NGO"
+              >
+                {ngos.map((ngo) => (
+                  <MenuItem key={ngo.id} value={ngo.id}>
+                    {ngo.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateCauseOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateCause} 
+              variant="contained"
+              disabled={createCauseMutation.isPending || !newCause.title || !newCause.category_id || !newCause.ngo_id}
+            >
+              {createCauseMutation.isPending ? <CircularProgress size={20} /> : 'Create Cause'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create NGO Dialog */}
+        <Dialog open={createNGOOpen} onClose={() => setCreateNGOOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Create New NGO</DialogTitle>
+          <DialogContent>
+            <TextField
+              fullWidth
+              label="NGO Name"
+              value={newNGO.name}
+              onChange={(e) => setNewNGO({ ...newNGO, name: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={newNGO.description}
+              onChange={(e) => setNewNGO({ ...newNGO, description: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Contact Email"
+              type="email"
+              value={newNGO.contact_email}
+              onChange={(e) => setNewNGO({ ...newNGO, contact_email: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Website URL"
+              value={newNGO.website_url}
+              onChange={(e) => setNewNGO({ ...newNGO, website_url: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateNGOOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateNGO} 
+              variant="contained"
+              disabled={createNGOMutation.isPending || !newNGO.name || !newNGO.contact_email}
+            >
+              {createNGOMutation.isPending ? <CircularProgress size={20} /> : 'Create NGO'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Vendor Dialog */}
+        <Dialog open={createVendorOpen} onClose={() => setCreateVendorOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Create New Vendor</DialogTitle>
+          <DialogContent>
+            <TextField
+              fullWidth
+              label="Vendor Name"
+              value={newVendor.name}
+              onChange={(e) => setNewVendor({ ...newVendor, name: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="GSTIN"
+              value={newVendor.gstin}
+              onChange={(e) => setNewVendor({ ...newVendor, gstin: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Contact Email"
+              type="email"
+              value={newVendor.contact_email}
+              onChange={(e) => setNewVendor({ ...newVendor, contact_email: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Phone"
+              value={newVendor.phone}
+              onChange={(e) => setNewVendor({ ...newVendor, phone: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Address"
+              multiline
+              rows={3}
+              value={newVendor.address}
+              onChange={(e) => setNewVendor({ ...newVendor, address: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateVendorOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateVendor} 
+              variant="contained"
+              disabled={createVendorMutation.isPending || !newVendor.name || !newVendor.contact_email}
+            >
+              {createVendorMutation.isPending ? <CircularProgress size={20} /> : 'Create Vendor'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Association Dialog */}
+        <Dialog open={createAssociationOpen} onClose={() => setCreateAssociationOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Create NGO-Vendor Association</DialogTitle>
+          <DialogContent>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>NGO</InputLabel>
+              <Select
+                value={newAssociation.ngo_id}
+                onChange={(e) => setNewAssociation({ ...newAssociation, ngo_id: e.target.value })}
+                label="NGO"
+              >
+                {ngos.map((ngo) => (
+                  <MenuItem key={ngo.id} value={ngo.id}>
+                    {ngo.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Vendor</InputLabel>
+              <Select
+                value={newAssociation.vendor_id}
+                onChange={(e) => setNewAssociation({ ...newAssociation, vendor_id: e.target.value })}
+                label="Vendor"
+              >
+                {vendors.map((vendor) => (
+                  <MenuItem key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={newAssociation.category_id}
+                onChange={(e) => setNewAssociation({ ...newAssociation, category_id: e.target.value })}
+                label="Category"
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateAssociationOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateAssociation} 
+              variant="contained"
+              disabled={createAssociationMutation.isPending || !newAssociation.ngo_id || !newAssociation.vendor_id || !newAssociation.category_id}
+            >
+              {createAssociationMutation.isPending ? <CircularProgress size={20} /> : 'Create Association'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </Box>
+  )
+}
+
+export default AdminConsole

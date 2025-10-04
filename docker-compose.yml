@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ngo_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@ngo.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped
+
+volumes:
+  pgadmin_data:
