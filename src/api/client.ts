@@ -437,6 +437,17 @@ class ApiClient {
     return response.data.value || []
   }
 
+  // Detailed Vendor and NGO View API methods
+  async getVendorDetails(vendorId: number): Promise<any> {
+    const response = await this.client.get(`/admin/vendors/${vendorId}/details`)
+    return response.data
+  }
+
+  async getNgoDetails(ngoId: number): Promise<any> {
+    const response = await this.client.get(`/admin/ngos/${ngoId}/details`)
+    return response.data
+  }
+
   // Runtime config
   async getRuntimeConfig(): Promise<{ apiBaseUrl: string }> {
     const response = await this.client.get('/.well-known/runtime-config')

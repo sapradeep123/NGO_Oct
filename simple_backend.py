@@ -2,6 +2,7 @@
 from fastapi import FastAPI, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from datetime import datetime
 
 categories_storage = [
     {
@@ -160,7 +161,7 @@ causes_storage = [
         "category_name": "Women & Children",
         "ngo_name": "Care Works",
         "image_url": "https://via.placeholder.com/400x300/F59E0B/FFFFFF?text=Women+Empowerment",
-        "created_at": "2024-01-15T00:00:00Z",
+        "created_at": datetime.now().isoformat() + "Z",
         "donation_count": 22
     }
 ]
@@ -175,7 +176,7 @@ pending_causes_storage = [
         "status": "PENDING_APPROVAL",
         "ngo_name": "Hope Trust",
         "category_name": "Emergency Relief",
-        "created_at": "2024-01-15T00:00:00Z",
+        "created_at": datetime.now().isoformat() + "Z",
         "ngo_id": 1,
         "category_id": 4
     },
@@ -235,6 +236,82 @@ ngo_vendor_associations = [
         "category_id": 3,  # Healthcare
         "status": "ACTIVE",
         "created_at": "2024-01-05T00:00:00Z"
+    }
+]
+
+# Invoice storage for detailed vendor views
+invoices_storage = [
+    {
+        "id": 1,
+        "vendor_id": 1,
+        "ngo_id": 1,
+        "cause_id": 1,
+        "invoice_number": "INV-2024-001",
+        "amount": 15000,
+        "description": "Emergency food supplies for flood victims",
+        "status": "PAID",
+        "created_at": "2024-01-05T00:00:00Z",
+        "paid_at": "2024-01-10T00:00:00Z"
+    },
+    {
+        "id": 2,
+        "vendor_id": 1,
+        "ngo_id": 1,
+        "cause_id": 2,
+        "invoice_number": "INV-2024-002",
+        "amount": 10000,
+        "description": "Nutritional supplements for children",
+        "status": "PENDING",
+        "created_at": "2024-01-12T00:00:00Z",
+        "paid_at": None
+    },
+    {
+        "id": 3,
+        "vendor_id": 2,
+        "ngo_id": 2,
+        "cause_id": 3,
+        "invoice_number": "INV-2024-003",
+        "amount": 25000,
+        "description": "Medical equipment for rural clinic",
+        "status": "PAID",
+        "created_at": "2024-01-08T00:00:00Z",
+        "paid_at": "2024-01-15T00:00:00Z"
+    },
+    {
+        "id": 4,
+        "vendor_id": 2,
+        "ngo_id": 2,
+        "cause_id": 4,
+        "invoice_number": "INV-2024-004",
+        "amount": 8000,
+        "description": "Medicines for emergency relief",
+        "status": "PENDING",
+        "created_at": "2024-01-18T00:00:00Z",
+        "paid_at": None
+    },
+    {
+        "id": 5,
+        "vendor_id": 3,
+        "ngo_id": 3,
+        "cause_id": 5,
+        "invoice_number": "INV-2024-005",
+        "amount": 30000,
+        "description": "Educational materials and books",
+        "status": "PAID",
+        "created_at": "2024-01-10T00:00:00Z",
+        "paid_at": "2024-01-20T00:00:00Z"
+    },
+    {
+        "id": 6,
+        "vendor_id": 3,
+        "ngo_id": 3,
+        "cause_id": 6,
+        "invoice_number": "INV-2024-006",
+        "amount": 12000,
+        "description": "School supplies for rural students",
+        "status": "PENDING",
+        "created_at": "2024-01-22T00:00:00Z",
+        "paid_at": None
     }
 ]
 
@@ -410,7 +487,7 @@ async def create_ngo(
         "contact_email": contact_email,
         "website_url": website_url,
         "status": "ACTIVE",
-        "created_at": "2024-01-15T00:00:00Z",
+        "created_at": datetime.now().isoformat() + "Z",
         "total_donations": 0,
         "total_causes": 0,
         "verified": False
@@ -437,7 +514,7 @@ async def create_vendor(
         "address": address,
         "kyc_status": "PENDING",
         "tenant_name": None,
-        "created_at": "2024-01-15T00:00:00Z",
+        "created_at": datetime.now().isoformat() + "Z",
         "total_invoices": 0,
         "total_amount": 0
     }
@@ -455,7 +532,7 @@ async def create_category(
         "id": new_id,
         "name": name,
         "description": description,
-        "created_at": "2024-01-15T00:00:00Z"
+        "created_at": datetime.now().isoformat() + "Z"
     }
     categories_storage.append(new_category)
     return new_category
@@ -486,7 +563,7 @@ async def create_cause(
         "category_id": category_id,
         "ngo_id": ngo_id,
         "image_url": image_url or "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Cause+Image",
-        "created_at": "2024-01-15T00:00:00Z",
+        "created_at": datetime.now().isoformat() + "Z",
         "ngo_name": ngo["name"] if ngo else "Unknown NGO",
         "category_name": category["name"] if category else "Unknown Category"
     }
@@ -698,7 +775,7 @@ async def create_ngo_vendor_association(
         "vendor_id": vendor_id,
         "category_id": category_id,
         "status": "ACTIVE",
-        "created_at": "2024-01-15T00:00:00Z"
+        "created_at": datetime.now().isoformat() + "Z"
     }
     ngo_vendor_associations.append(new_association)
     return new_association
@@ -777,6 +854,129 @@ async def get_category_associations(category_id: int):
     return {
         "value": enriched_associations,
         "Count": len(enriched_associations)
+    }
+
+# Detailed Vendor and NGO View Endpoints
+@app.get("/admin/vendors/{vendor_id}/details")
+async def get_vendor_details(vendor_id: int):
+    """Get detailed vendor information including associations, invoices, and payment history"""
+    vendor = next((v for v in vendors_storage if v["id"] == vendor_id), None)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    # Get associated NGOs
+    associations = [a for a in ngo_vendor_associations if a["vendor_id"] == vendor_id and a["status"] == "ACTIVE"]
+    associated_ngos = []
+    for assoc in associations:
+        ngo = next((n for n in ngos_storage if n["id"] == assoc["ngo_id"]), None)
+        category = next((c for c in categories_storage if c["id"] == assoc["category_id"]), None)
+        if ngo:
+            associated_ngos.append({
+                "ngo_id": ngo["id"],
+                "ngo_name": ngo["name"],
+                "category_id": assoc["category_id"],
+                "category_name": category["name"] if category else "Unknown Category",
+                "association_created_at": assoc["created_at"]
+            })
+    
+    # Get invoices
+    vendor_invoices = [inv for inv in invoices_storage if inv["vendor_id"] == vendor_id]
+    enriched_invoices = []
+    for invoice in vendor_invoices:
+        ngo = next((n for n in ngos_storage if n["id"] == invoice["ngo_id"]), None)
+        cause = next((c for c in causes_storage if c["id"] == invoice["cause_id"]), None)
+        enriched_invoices.append({
+            **invoice,
+            "ngo_name": ngo["name"] if ngo else "Unknown NGO",
+            "cause_title": cause["title"] if cause else "Unknown Cause"
+        })
+    
+    # Calculate financial summary
+    total_invoiced = sum(inv["amount"] for inv in vendor_invoices)
+    total_paid = sum(inv["amount"] for inv in vendor_invoices if inv["status"] == "PAID")
+    total_pending = sum(inv["amount"] for inv in vendor_invoices if inv["status"] == "PENDING")
+    
+    return {
+        "vendor": vendor,
+        "associated_ngos": associated_ngos,
+        "invoices": enriched_invoices,
+        "financial_summary": {
+            "total_invoiced": total_invoiced,
+            "total_paid": total_paid,
+            "total_pending": total_pending,
+            "invoice_count": len(vendor_invoices),
+            "paid_count": len([inv for inv in vendor_invoices if inv["status"] == "PAID"]),
+            "pending_count": len([inv for inv in vendor_invoices if inv["status"] == "PENDING"])
+        }
+    }
+
+@app.get("/admin/ngos/{ngo_id}/details")
+async def get_ngo_details(ngo_id: int):
+    """Get detailed NGO information including vendor associations, causes, and financial data"""
+    ngo = next((n for n in ngos_storage if n["id"] == ngo_id), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Get associated vendors
+    associations = [a for a in ngo_vendor_associations if a["ngo_id"] == ngo_id and a["status"] == "ACTIVE"]
+    associated_vendors = []
+    for assoc in associations:
+        vendor = next((v for v in vendors_storage if v["id"] == assoc["vendor_id"]), None)
+        category = next((c for c in categories_storage if c["id"] == assoc["category_id"]), None)
+        if vendor:
+            associated_vendors.append({
+                "vendor_id": vendor["id"],
+                "vendor_name": vendor["name"],
+                "category_id": assoc["category_id"],
+                "category_name": category["name"] if category else "Unknown Category",
+                "association_created_at": assoc["created_at"]
+            })
+    
+    # Get causes
+    ngo_causes = [c for c in causes_storage if c["tenant_id"] == ngo_id]
+    enriched_causes = []
+    for cause in ngo_causes:
+        category = next((c for c in categories_storage if c["id"] == cause["category_id"]), None)
+        enriched_causes.append({
+            **cause,
+            "category_name": category["name"] if category else "Unknown Category"
+        })
+    
+    # Get invoices related to this NGO
+    ngo_invoices = [inv for inv in invoices_storage if inv["ngo_id"] == ngo_id]
+    enriched_invoices = []
+    for invoice in ngo_invoices:
+        vendor = next((v for v in vendors_storage if v["id"] == invoice["vendor_id"]), None)
+        cause = next((c for c in causes_storage if c["id"] == invoice["cause_id"]), None)
+        enriched_invoices.append({
+            **invoice,
+            "vendor_name": vendor["name"] if vendor else "Unknown Vendor",
+            "cause_title": cause["title"] if cause else "Unknown Cause"
+        })
+    
+    # Calculate financial summary
+    total_donations = sum(cause["current_amount"] for cause in ngo_causes)
+    total_target = sum(cause["target_amount"] for cause in ngo_causes)
+    total_invoiced = sum(inv["amount"] for inv in ngo_invoices)
+    total_paid = sum(inv["amount"] for inv in ngo_invoices if inv["status"] == "PAID")
+    total_pending = sum(inv["amount"] for inv in ngo_invoices if inv["status"] == "PENDING")
+    
+    return {
+        "ngo": ngo,
+        "associated_vendors": associated_vendors,
+        "causes": enriched_causes,
+        "invoices": enriched_invoices,
+        "financial_summary": {
+            "total_donations_received": total_donations,
+            "total_target_amount": total_target,
+            "funding_progress_percentage": (total_donations / total_target * 100) if total_target > 0 else 0,
+            "total_invoiced": total_invoiced,
+            "total_paid": total_paid,
+            "total_pending": total_pending,
+            "cause_count": len(ngo_causes),
+            "active_causes": len([c for c in ngo_causes if c["status"] == "LIVE"]),
+            "completed_causes": len([c for c in ngo_causes if c["status"] == "FUNDED"])
+        }
     }
 
 if __name__ == "__main__":

@@ -78,6 +78,12 @@ const AdminConsole: React.FC = () => {
     category_id: ''
   })
 
+  // Detail view state
+  const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false)
+  const [ngoDetailsOpen, setNgoDetailsOpen] = useState(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+  const [selectedNgoId, setSelectedNgoId] = useState<number | null>(null)
+
   // Fetch categories
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -118,6 +124,20 @@ const AdminConsole: React.FC = () => {
   const { data: associations = [], isLoading: associationsLoading } = useQuery({
     queryKey: ['ngo-vendor-associations'],
     queryFn: () => apiClient.getNgoVendorAssociations(),
+  })
+
+  // Fetch vendor details
+  const { data: vendorDetails, isLoading: vendorDetailsLoading } = useQuery({
+    queryKey: ['vendor-details', selectedVendorId],
+    queryFn: () => apiClient.getVendorDetails(selectedVendorId!),
+    enabled: !!selectedVendorId,
+  })
+
+  // Fetch NGO details
+  const { data: ngoDetails, isLoading: ngoDetailsLoading } = useQuery({
+    queryKey: ['ngo-details', selectedNgoId],
+    queryFn: () => apiClient.getNgoDetails(selectedNgoId!),
+    enabled: !!selectedNgoId,
   })
 
   // Create category mutation
@@ -244,6 +264,17 @@ const AdminConsole: React.FC = () => {
 
   const handleDeleteAssociation = (associationId: number) => {
     deleteAssociationMutation.mutate(associationId)
+  }
+
+  // Detail view handlers
+  const handleViewVendorDetails = (vendorId: number) => {
+    setSelectedVendorId(vendorId)
+    setVendorDetailsOpen(true)
+  }
+
+  const handleViewNgoDetails = (ngoId: number) => {
+    setSelectedNgoId(ngoId)
+    setNgoDetailsOpen(true)
   }
 
   // Helper function to get available vendors for selected NGO and category
@@ -856,6 +887,21 @@ const AdminConsole: React.FC = () => {
                 { field: 'verified', headerName: 'Verified', width: 100, renderCell: (params: any) => 
                   params.value ? 'Yes' : 'No'
                 },
+                {
+                  field: 'actions',
+                  headerName: 'Actions',
+                  width: 120,
+                  renderCell: (params: any) => (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleViewNgoDetails(params.row.id)}
+                      sx={{ mr: 1 }}
+                    >
+                      View Details
+                    </Button>
+                  )
+                }
               ]}
               loading={ngosLoading}
             />
@@ -894,6 +940,21 @@ const AdminConsole: React.FC = () => {
                 { field: 'total_amount', headerName: 'Total Amount', width: 150, renderCell: (params: any) => 
                   `₹${params.value?.toLocaleString() || '0'}`
                 },
+                {
+                  field: 'actions',
+                  headerName: 'Actions',
+                  width: 120,
+                  renderCell: (params: any) => (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleViewVendorDetails(params.row.id)}
+                      sx={{ mr: 1 }}
+                    >
+                      View Details
+                    </Button>
+                  )
+                }
               ]}
               loading={vendorsLoading}
             />
@@ -1304,6 +1365,335 @@ const AdminConsole: React.FC = () => {
             >
               {createAssociationMutation.isPending ? <CircularProgress size={20} /> : 'Create Association'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Vendor Details Dialog */}
+        <Dialog open={vendorDetailsOpen} onClose={() => setVendorDetailsOpen(false)} maxWidth="lg" fullWidth>
+          <DialogTitle>Vendor Details</DialogTitle>
+          <DialogContent>
+            {vendorDetailsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : vendorDetails ? (
+              <Box>
+                {/* Vendor Basic Info */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      {vendorDetails.vendor.name}
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">GSTIN:</Typography>
+                        <Typography variant="body1">{vendorDetails.vendor.gstin}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">KYC Status:</Typography>
+                        <Chip 
+                          label={vendorDetails.vendor.kyc_status} 
+                          color={vendorDetails.vendor.kyc_status === 'VERIFIED' ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Email:</Typography>
+                        <Typography variant="body1">{vendorDetails.vendor.contact_email}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Phone:</Typography>
+                        <Typography variant="body1">{vendorDetails.vendor.phone}</Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">Address:</Typography>
+                        <Typography variant="body1">{vendorDetails.vendor.address}</Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Financial Summary */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Financial Summary</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="body2" color="text.secondary">Total Invoiced:</Typography>
+                        <Typography variant="h6" color="primary">
+                          ₹{vendorDetails.financial_summary.total_invoiced.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="body2" color="text.secondary">Total Paid:</Typography>
+                        <Typography variant="h6" color="success.main">
+                          ₹{vendorDetails.financial_summary.total_paid.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="body2" color="text.secondary">Total Pending:</Typography>
+                        <Typography variant="h6" color="warning.main">
+                          ₹{vendorDetails.financial_summary.total_pending.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Associated NGOs */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Associated NGOs</Typography>
+                    {vendorDetails.associated_ngos.length > 0 ? (
+                      <DataTable
+                        rows={vendorDetails.associated_ngos}
+                        columns={[
+                          { field: 'ngo_name', headerName: 'NGO Name', width: 200 },
+                          { field: 'category_name', headerName: 'Category', width: 150 },
+                          { field: 'association_created_at', headerName: 'Associated Since', width: 150, renderCell: (params: any) =>
+                            new Date(params.value).toLocaleDateString()
+                          }
+                        ]}
+                        loading={false}
+                        getRowId={(row) => `${row.ngo_id}-${row.category_id}`}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No associated NGOs</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Invoices */}
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Invoice History</Typography>
+                    {vendorDetails.invoices.length > 0 ? (
+                      <DataTable
+                        rows={vendorDetails.invoices}
+                        columns={[
+                          { field: 'invoice_number', headerName: 'Invoice #', width: 150 },
+                          { field: 'ngo_name', headerName: 'NGO', width: 150 },
+                          { field: 'cause_title', headerName: 'Cause', width: 200 },
+                          { field: 'amount', headerName: 'Amount', width: 120, renderCell: (params: any) =>
+                            `₹${params.value.toLocaleString()}`
+                          },
+                          { field: 'status', headerName: 'Status', width: 100, renderCell: (params: any) => (
+                            <Chip 
+                              label={params.value} 
+                              color={params.value === 'PAID' ? 'success' : 'warning'}
+                              size="small"
+                            />
+                          )},
+                          { field: 'created_at', headerName: 'Created', width: 120, renderCell: (params: any) =>
+                            new Date(params.value).toLocaleDateString()
+                          },
+                          { field: 'paid_at', headerName: 'Paid', width: 120, renderCell: (params: any) =>
+                            params.value ? new Date(params.value).toLocaleDateString() : '-'
+                          }
+                        ]}
+                        loading={false}
+                        getRowId={(row) => row.id.toString()}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No invoices found</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Box>
+            ) : (
+              <Typography>No vendor details available</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setVendorDetailsOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* NGO Details Dialog */}
+        <Dialog open={ngoDetailsOpen} onClose={() => setNgoDetailsOpen(false)} maxWidth="lg" fullWidth>
+          <DialogTitle>NGO Details</DialogTitle>
+          <DialogContent>
+            {ngoDetailsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : ngoDetails ? (
+              <Box>
+                {/* NGO Basic Info */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      {ngoDetails.ngo.name}
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Email:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.contact_email}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Website:</Typography>
+                        <Typography variant="body1">
+                          <a href={ngoDetails.ngo.website_url} target="_blank" rel="noopener noreferrer">
+                            {ngoDetails.ngo.website_url}
+                          </a>
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Status:</Typography>
+                        <Chip 
+                          label={ngoDetails.ngo.status} 
+                          color={ngoDetails.ngo.status === 'ACTIVE' ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Verified:</Typography>
+                        <Chip 
+                          label={ngoDetails.ngo.verified ? 'Yes' : 'No'} 
+                          color={ngoDetails.ngo.verified ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">Description:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.description}</Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Financial Summary */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Financial Summary</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Total Donations:</Typography>
+                        <Typography variant="h6" color="primary">
+                          ₹{ngoDetails.financial_summary.total_donations_received.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Target Amount:</Typography>
+                        <Typography variant="h6" color="info.main">
+                          ₹{ngoDetails.financial_summary.total_target_amount.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Progress:</Typography>
+                        <Typography variant="h6" color="success.main">
+                          {ngoDetails.financial_summary.funding_progress_percentage.toFixed(1)}%
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Active Causes:</Typography>
+                        <Typography variant="h6" color="warning.main">
+                          {ngoDetails.financial_summary.active_causes}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Associated Vendors */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Associated Vendors</Typography>
+                    {ngoDetails.associated_vendors.length > 0 ? (
+                      <DataTable
+                        rows={ngoDetails.associated_vendors}
+                        columns={[
+                          { field: 'vendor_name', headerName: 'Vendor Name', width: 200 },
+                          { field: 'category_name', headerName: 'Category', width: 150 },
+                          { field: 'association_created_at', headerName: 'Associated Since', width: 150, renderCell: (params: any) =>
+                            new Date(params.value).toLocaleDateString()
+                          }
+                        ]}
+                        loading={false}
+                        getRowId={(row) => `${row.vendor_id}-${row.category_id}`}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No associated vendors</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Causes */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Active Causes</Typography>
+                    {ngoDetails.causes.length > 0 ? (
+                      <DataTable
+                        rows={ngoDetails.causes}
+                        columns={[
+                          { field: 'title', headerName: 'Cause Title', width: 200 },
+                          { field: 'category_name', headerName: 'Category', width: 150 },
+                          { field: 'status', headerName: 'Status', width: 120, renderCell: (params: any) => (
+                            <Chip 
+                              label={params.value} 
+                              color={params.value === 'LIVE' ? 'success' : params.value === 'FUNDED' ? 'primary' : 'default'}
+                              size="small"
+                            />
+                          )},
+                          { field: 'current_amount', headerName: 'Raised', width: 120, renderCell: (params: any) =>
+                            `₹${params.value.toLocaleString()}`
+                          },
+                          { field: 'target_amount', headerName: 'Target', width: 120, renderCell: (params: any) =>
+                            `₹${params.value.toLocaleString()}`
+                          }
+                        ]}
+                        loading={false}
+                        getRowId={(row) => row.id.toString()}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No causes found</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Invoices */}
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Invoice History</Typography>
+                    {ngoDetails.invoices.length > 0 ? (
+                      <DataTable
+                        rows={ngoDetails.invoices}
+                        columns={[
+                          { field: 'invoice_number', headerName: 'Invoice #', width: 150 },
+                          { field: 'vendor_name', headerName: 'Vendor', width: 150 },
+                          { field: 'cause_title', headerName: 'Cause', width: 200 },
+                          { field: 'amount', headerName: 'Amount', width: 120, renderCell: (params: any) =>
+                            `₹${params.value.toLocaleString()}`
+                          },
+                          { field: 'status', headerName: 'Status', width: 100, renderCell: (params: any) => (
+                            <Chip 
+                              label={params.value} 
+                              color={params.value === 'PAID' ? 'success' : 'warning'}
+                              size="small"
+                            />
+                          )},
+                          { field: 'created_at', headerName: 'Created', width: 120, renderCell: (params: any) =>
+                            new Date(params.value).toLocaleDateString()
+                          },
+                          { field: 'paid_at', headerName: 'Paid', width: 120, renderCell: (params: any) =>
+                            params.value ? new Date(params.value).toLocaleDateString() : '-'
+                          }
+                        ]}
+                        loading={false}
+                        getRowId={(row) => row.id.toString()}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No invoices found</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Box>
+            ) : (
+              <Typography>No NGO details available</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setNgoDetailsOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
       </Container>

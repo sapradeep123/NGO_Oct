@@ -14,6 +14,7 @@ interface DataTableProps {
   columns: GridColDef[]
   loading?: boolean
   onRowClick?: (params: any) => void
+  getRowId?: (row: any) => string
   actions?: Array<{
     icon: React.ReactElement
     label: string
@@ -27,6 +28,7 @@ const DataTable: React.FC<DataTableProps> = ({
   columns,
   loading = false,
   onRowClick,
+  getRowId,
   actions = []
 }) => {
   const columnsWithActions = [
@@ -60,6 +62,7 @@ const DataTable: React.FC<DataTableProps> = ({
           columns={columnsWithActions}
           loading={loading}
           onRowClick={onRowClick}
+          getRowId={getRowId}
           slots={{
             toolbar: GridToolbar,
           }}
