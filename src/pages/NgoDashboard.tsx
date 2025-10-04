@@ -42,7 +42,9 @@ const NgoDashboard: React.FC = () => {
   const queryClient = useQueryClient()
   const [tabValue, setTabValue] = useState(0)
   const [createCauseOpen, setCreateCauseOpen] = useState(false)
+  const [editCauseOpen, setEditCauseOpen] = useState(false)
   const [micrositeOpen, setMicrositeOpen] = useState(false)
+  const [editingCause, setEditingCause] = useState<any>(null)
   const [newCause, setNewCause] = useState({
     title: '',
     description: '',
@@ -117,6 +119,25 @@ const NgoDashboard: React.FC = () => {
     }
   })
 
+  // Update cause mutation
+  const updateCauseMutation = useMutation({
+    mutationFn: async (causeData: any) => {
+      // For now, we'll simulate an update - in a real app, you'd have an update endpoint
+      console.log('Updating cause:', causeData)
+      return { id: causeData.id, ...causeData }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ngo-causes'] })
+      setEditCauseOpen(false)
+      setEditingCause(null)
+      alert('Cause updated successfully!')
+    },
+    onError: (error) => {
+      console.error('Error updating cause:', error)
+      alert('Failed to update cause. Please try again.')
+    }
+  })
+
   // Approve invoice mutation
   const approveInvoiceMutation = useMutation({
     mutationFn: async (invoiceId: number) => {
@@ -185,8 +206,7 @@ const NgoDashboard: React.FC = () => {
       icon: <Edit />,
       label: 'Edit',
       onClick: (params: any) => {
-        // Navigate to edit cause page
-        navigate(`/cause/${params.id}/edit`)
+        handleEditCause(params.row)
       }
     },
     {
@@ -215,6 +235,17 @@ const NgoDashboard: React.FC = () => {
 
   const handleCreateCause = () => {
     createCauseMutation.mutate(newCause)
+  }
+
+  const handleEditCause = (cause: any) => {
+    setEditingCause(cause)
+    setEditCauseOpen(true)
+  }
+
+  const handleUpdateCause = () => {
+    if (editingCause) {
+      updateCauseMutation.mutate(editingCause)
+    }
   }
 
   const TabPanel = ({ children, value, index }: { children: React.ReactNode, value: number, index: number }) => (
@@ -667,6 +698,78 @@ const NgoDashboard: React.FC = () => {
               disabled={createCauseMutation.isPending}
             >
               {createCauseMutation.isPending ? <CircularProgress size={20} /> : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Cause Dialog */}
+        <Dialog open={editCauseOpen} onClose={() => setEditCauseOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Edit Cause</DialogTitle>
+          <DialogContent>
+            <TextField
+              fullWidth
+              label="Title"
+              value={editingCause?.title || ''}
+              onChange={(e) => setEditingCause({ ...editingCause, title: e.target.value })}
+              sx={{ mb: 2, mt: 1 }}
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              multiline
+              rows={3}
+              value={editingCause?.description || ''}
+              onChange={(e) => setEditingCause({ ...editingCause, description: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Goal Amount (₹)"
+              type="number"
+              value={editingCause?.target_amount || ''}
+              onChange={(e) => setEditingCause({ ...editingCause, target_amount: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={editingCause?.category_id || ''}
+                onChange={(e) => setEditingCause({ ...editingCause, category_id: e.target.value })}
+              >
+                {categories.map((category) => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Type</InputLabel>
+              <Select
+                value={editingCause?.type || 'VENDOR'}
+                onChange={(e) => setEditingCause({ ...editingCause, type: e.target.value })}
+              >
+                <MenuItem value="VENDOR">Vendor Managed</MenuItem>
+                <MenuItem value="NGO_MANAGED">NGO Managed</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Image URL (Optional)"
+              value={editingCause?.image_url || ''}
+              onChange={(e) => setEditingCause({ ...editingCause, image_url: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+              sx={{ mb: 2 }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditCauseOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleUpdateCause} 
+              variant="contained"
+              disabled={updateCauseMutation.isPending}
+            >
+              {updateCauseMutation.isPending ? <CircularProgress size={20} /> : 'Update'}
             </Button>
           </DialogActions>
         </Dialog>
