@@ -32,13 +32,11 @@ import {
   Store,
   Domain
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
 import DataTable from '../components/DataTable'
 
 const NgoDashboard: React.FC = () => {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [tabValue, setTabValue] = useState(0)
   const [createCauseOpen, setCreateCauseOpen] = useState(false)
