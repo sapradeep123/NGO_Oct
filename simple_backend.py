@@ -41,16 +41,16 @@ ngos_storage = [
     {
         "id": 1, "name": "Hope Trust", "slug": "hope-trust",
         "description": "Dedicated to providing hope and support to communities in need through education, healthcare, and emergency relief programs.",
-        "logo_url": "https://via.placeholder.com/200x200/2563EB/FFFFFF?text=Hope+Trust",
+        "logo_url": "https://picsum.photos/200/200?random=1",
         "contact_email": "contact@hopetrust.org", "website_url": "https://hopetrust.org",
         "phone": "+91-9876543210", "address": "123 Hope Street, Mumbai, Maharashtra 400001",
         "status": "ACTIVE", "created_at": "2024-01-01T00:00:00Z",
         "total_donations": 125000, "total_causes": 3, "verified": True,
         "photo_gallery": [
-            "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=School+Building",
-            "https://via.placeholder.com/400x300/059669/FFFFFF?text=Medical+Camp",
-            "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Food+Distribution",
-            "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Children+Learning"
+            "https://picsum.photos/400/300?random=11",
+            "https://picsum.photos/400/300?random=12",
+            "https://picsum.photos/400/300?random=13",
+            "https://picsum.photos/400/300?random=14"
         ],
         "contact_person": "Dr. Sarah Johnson",
         "contact_phone": "+91-9876543210",
@@ -67,16 +67,16 @@ ngos_storage = [
     {
         "id": 2, "name": "Care Works", "slug": "care-works",
         "description": "Committed to improving healthcare access and quality through mobile clinics, health awareness programs, and medical equipment distribution.",
-        "logo_url": "https://via.placeholder.com/200x200/059669/FFFFFF?text=Care+Works",
+        "logo_url": "https://picsum.photos/200/200?random=2",
         "contact_email": "info@careworks.org", "website_url": "https://careworks.org",
         "phone": "+91-9876543211", "address": "456 Care Avenue, Delhi, Delhi 110001",
         "status": "ACTIVE", "created_at": "2024-01-02T00:00:00Z",
         "total_donations": 300000, "total_causes": 5, "verified": True,
         "photo_gallery": [
-            "https://via.placeholder.com/400x300/059669/FFFFFF?text=Mobile+Clinic",
-            "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Health+Camp",
-            "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Medical+Equipment",
-            "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Patient+Care"
+            "https://picsum.photos/400/300?random=21",
+            "https://picsum.photos/400/300?random=22",
+            "https://picsum.photos/400/300?random=23",
+            "https://picsum.photos/400/300?random=24"
         ],
         "contact_person": "Dr. Rajesh Kumar",
         "contact_phone": "+91-9876543211",
@@ -93,16 +93,16 @@ ngos_storage = [
     {
         "id": 3, "name": "Health First Foundation", "slug": "health-first",
         "description": "Promoting health and wellness in underserved communities through preventive healthcare, nutrition programs, and health education initiatives.",
-        "logo_url": "https://via.placeholder.com/200x200/DC2626/FFFFFF?text=Health+First",
+        "logo_url": "https://picsum.photos/200/200?random=3",
         "contact_email": "contact@healthfirst.org", "website_url": "https://healthfirst.org",
         "phone": "+91-9876543212", "address": "789 Health Road, Bangalore, Karnataka 560001",
         "status": "ACTIVE", "created_at": "2024-01-03T00:00:00Z",
         "total_donations": 200000, "total_causes": 4, "verified": True,
         "photo_gallery": [
-            "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Health+Center",
-            "https://via.placeholder.com/400x300/059669/FFFFFF?text=Nutrition+Program",
-            "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Health+Education",
-            "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Community+Outreach"
+            "https://picsum.photos/400/300?random=31",
+            "https://picsum.photos/400/300?random=32",
+            "https://picsum.photos/400/300?random=33",
+            "https://picsum.photos/400/300?random=34"
         ],
         "contact_person": "Dr. Priya Sharma",
         "contact_phone": "+91-9876543212",
@@ -260,7 +260,7 @@ causes_storage = [
         "ngo_ids": [1],  # Hope Trust
         "category_name": "Food & Nutrition",
         "ngo_names": ["Hope Trust"],
-        "image_url": "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Daily+Meals",
+        "image_url": "https://picsum.photos/400/300?random=101",
         "created_at": "2024-01-05T00:00:00Z",
         "donation_count": 45
     },
@@ -275,7 +275,7 @@ causes_storage = [
         "ngo_ids": [2],  # Care Works
         "category_name": "Education",
         "ngo_names": ["Care Works"],
-        "image_url": "https://via.placeholder.com/400x300/059669/FFFFFF?text=School+Infrastructure",
+        "image_url": "https://picsum.photos/400/300?random=102",
         "created_at": "2024-01-08T00:00:00Z",
         "donation_count": 32
     },
@@ -290,7 +290,7 @@ causes_storage = [
         "ngo_ids": [3],  # Health First Foundation
         "category_name": "Healthcare",
         "ngo_names": ["Health First Foundation"],
-        "image_url": "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Mobile+Clinic",
+        "image_url": "https://picsum.photos/400/300?random=103",
         "created_at": "2024-01-10T00:00:00Z",
         "donation_count": 28
     },
@@ -305,7 +305,7 @@ causes_storage = [
         "ngo_ids": [1],  # Hope Trust
         "category_name": "Emergency Relief",
         "ngo_names": ["Hope Trust"],
-        "image_url": "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Flood+Relief",
+        "image_url": "https://picsum.photos/400/300?random=104",
         "created_at": "2024-01-12T00:00:00Z",
         "donation_count": 18
     },
@@ -320,7 +320,7 @@ causes_storage = [
         "ngo_ids": [2],  # Care Works
         "category_name": "Women & Children",
         "ngo_names": ["Care Works"],
-        "image_url": "https://via.placeholder.com/400x300/F59E0B/FFFFFF?text=Women+Empowerment",
+        "image_url": "https://picsum.photos/400/300?random=105",
         "created_at": datetime.now().isoformat() + "Z",
         "donation_count": 22
     }
@@ -641,7 +641,7 @@ async def create_ngo(
         "name": name,
         "slug": name.lower().replace(" ", "-"),
         "description": description,
-        "logo_url": logo_url or f"https://via.placeholder.com/200x200/2563EB/FFFFFF?text={name.replace(' ', '+')}",
+        "logo_url": logo_url or f"https://picsum.photos/200/200?random={hash(name) % 1000}",
         "contact_email": contact_email,
         "website_url": website_url,
         "status": "ACTIVE",
@@ -729,7 +729,7 @@ async def create_cause(
         "status": "PENDING_APPROVAL",
         "category_id": category_id,
         "ngo_ids": ngo_id_list,  # List of NGO IDs
-        "image_url": image_url or "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Cause+Image",
+        "image_url": image_url or f"https://picsum.photos/400/300?random={hash(title) % 1000}",
         "created_at": datetime.now().isoformat() + "Z",
         "ngo_names": ngo_names,  # List of NGO names
         "category_name": category["name"] if category else "Unknown Category",
