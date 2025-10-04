@@ -1,6 +1,22 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15
+    container_name: ngo_postgres
+    environment:
+      POSTGRES_USER: ngo_user
+      POSTGRES_PASSWORD: postgres@123
+      POSTGRES_DB: ngo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - ngo_network
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: ngo_pgadmin
@@ -12,6 +28,15 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - ngo_network
 
 volumes:
+  postgres_data:
   pgadmin_data:
+
+networks:
+  ngo_network:
+    driver: bridge

@@ -185,6 +185,11 @@ const AdminConsole: React.FC = () => {
       setCreateAssociationOpen(false)
       setNewAssociation({ ngo_id: '', vendor_id: '', category_id: '' })
     },
+    onError: (error: any) => {
+      console.error('Error creating association:', error)
+      // You can add a toast notification here if you have one
+      alert(error.response?.data?.detail || 'Failed to create association')
+    },
   })
 
   // Delete association mutation
@@ -239,6 +244,45 @@ const AdminConsole: React.FC = () => {
 
   const handleDeleteAssociation = (associationId: number) => {
     deleteAssociationMutation.mutate(associationId)
+  }
+
+  // Helper function to get available vendors for selected NGO and category
+  const getAvailableVendors = () => {
+    if (!newAssociation.ngo_id || !newAssociation.category_id) return vendors
+    
+    const existingAssociations = associations.filter(assoc => 
+      assoc.ngo_id === parseInt(newAssociation.ngo_id) && 
+      assoc.category_id === parseInt(newAssociation.category_id)
+    )
+    
+    const usedVendorIds = existingAssociations.map(assoc => assoc.vendor_id)
+    return vendors.filter(vendor => !usedVendorIds.includes(vendor.id))
+  }
+
+  // Helper function to get available categories for selected NGO and vendor
+  const getAvailableCategories = () => {
+    if (!newAssociation.ngo_id || !newAssociation.vendor_id) return categories
+    
+    const existingAssociations = associations.filter(assoc => 
+      assoc.ngo_id === parseInt(newAssociation.ngo_id) && 
+      assoc.vendor_id === parseInt(newAssociation.vendor_id)
+    )
+    
+    const usedCategoryIds = existingAssociations.map(assoc => assoc.category_id)
+    return categories.filter(category => !usedCategoryIds.includes(category.id))
+  }
+
+  // Helper function to get available NGOs for selected vendor and category
+  const getAvailableNGOs = () => {
+    if (!newAssociation.vendor_id || !newAssociation.category_id) return ngos
+    
+    const existingAssociations = associations.filter(assoc => 
+      assoc.vendor_id === parseInt(newAssociation.vendor_id) && 
+      assoc.category_id === parseInt(newAssociation.category_id)
+    )
+    
+    const usedNgoIds = existingAssociations.map(assoc => assoc.ngo_id)
+    return ngos.filter(ngo => !usedNgoIds.includes(ngo.id))
   }
 
   const TabPanel = ({ children, value, index }: { children: React.ReactNode, value: number, index: number }) => (
@@ -1181,28 +1225,53 @@ const AdminConsole: React.FC = () => {
               <InputLabel>NGO</InputLabel>
               <Select
                 value={newAssociation.ngo_id}
-                onChange={(e) => setNewAssociation({ ...newAssociation, ngo_id: e.target.value })}
+                onChange={(e) => {
+                  const ngoId = e.target.value
+                  setNewAssociation({ 
+                    ngo_id: ngoId, 
+                    vendor_id: '', 
+                    category_id: '' 
+                  })
+                }}
                 label="NGO"
               >
-                {ngos.map((ngo) => (
+                {getAvailableNGOs().map((ngo) => (
                   <MenuItem key={ngo.id} value={ngo.id}>
                     {ngo.name}
                   </MenuItem>
                 ))}
+                {getAvailableNGOs().length === 0 && (
+                  <MenuItem disabled>
+                    No available NGOs for this vendor-category combination
+                  </MenuItem>
+                )}
               </Select>
             </FormControl>
             <FormControl fullWidth sx={{ mb: 2 }}>
               <InputLabel>Vendor</InputLabel>
               <Select
                 value={newAssociation.vendor_id}
-                onChange={(e) => setNewAssociation({ ...newAssociation, vendor_id: e.target.value })}
+                onChange={(e) => {
+                  const vendorId = e.target.value
+                  setNewAssociation({ 
+                    ...newAssociation, 
+                    vendor_id: vendorId,
+                    category_id: '' // Reset category when vendor changes
+                  })
+                }}
                 label="Vendor"
+                disabled={!newAssociation.ngo_id}
               >
-                {vendors.map((vendor) => (
+                {getAvailableVendors().map((vendor) => (
                   <MenuItem key={vendor.id} value={vendor.id}>
                     {vendor.name}
                   </MenuItem>
                 ))}
+                {getAvailableVendors().length === 0 && newAssociation.ngo_id && newAssociation.category_id && (
+                  <MenuItem disabled>
+                    No available vendors for this NGO-category combination
+                  </MenuItem>
+                )}
               </Select>
             </FormControl>
             <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1211,12 +1280,18 @@ const AdminConsole: React.FC = () => {
                 value={newAssociation.category_id}
                 onChange={(e) => setNewAssociation({ ...newAssociation, category_id: e.target.value })}
                 label="Category"
+                disabled={!newAssociation.ngo_id || !newAssociation.vendor_id}
               >
-                {categories.map((category) => (
+                {getAvailableCategories().map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}
                   </MenuItem>
                 ))}
+                {getAvailableCategories().length === 0 && newAssociation.ngo_id && newAssociation.vendor_id && (
+                  <MenuItem disabled>
+                    No available categories for this NGO-vendor combination
+                  </MenuItem>
+                )}
               </Select>
             </FormControl>
           </DialogContent>

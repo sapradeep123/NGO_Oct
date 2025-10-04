@@ -1,5 +1,5 @@
 # In-memory storage for demo purposes
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -677,7 +677,19 @@ async def create_ngo_vendor_association(
                    if a["ngo_id"] == ngo_id and a["vendor_id"] == vendor_id and a["category_id"] == category_id), None)
     
     if existing:
-        return {"error": "Association already exists"}
+        # Get names for better error message
+        ngo = next((n for n in ngos_storage if n["id"] == ngo_id), None)
+        vendor = next((v for v in vendors_storage if v["id"] == vendor_id), None)
+        category = next((c for c in categories_storage if c["id"] == category_id), None)
+        
+        ngo_name = ngo["name"] if ngo else "Unknown NGO"
+        vendor_name = vendor["name"] if vendor else "Unknown Vendor"
+        category_name = category["name"] if category else "Unknown Category"
+        
+        raise HTTPException(
+            status_code=400,
+            detail=f"Association already exists: {ngo_name} ↔ {vendor_name} for {category_name}"
+        )
     
     new_id = max([a["id"] for a in ngo_vendor_associations], default=0) + 1
     new_association = {
