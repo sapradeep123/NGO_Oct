@@ -1093,7 +1093,7 @@ async def get_ngo_details(ngo_id: int):
             })
     
     # Get causes
-    ngo_causes = [c for c in causes_storage if c["tenant_id"] == ngo_id]
+    ngo_causes = [c for c in causes_storage if c["ngo_id"] == ngo_id]
     enriched_causes = []
     for cause in ngo_causes:
         category = next((c for c in categories_storage if c["id"] == cause["category_id"]), None)
