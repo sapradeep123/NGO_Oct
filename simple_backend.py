@@ -40,27 +40,187 @@ categories_storage = [
 ngos_storage = [
     {
         "id": 1, "name": "Hope Trust", "slug": "hope-trust",
-        "description": "Dedicated to providing hope and support to communities in need",
+        "description": "Dedicated to providing hope and support to communities in need through education, healthcare, and emergency relief programs.",
         "logo_url": "https://via.placeholder.com/200x200/2563EB/FFFFFF?text=Hope+Trust",
         "contact_email": "contact@hopetrust.org", "website_url": "https://hopetrust.org",
+        "phone": "+91-9876543210", "address": "123 Hope Street, Mumbai, Maharashtra 400001",
         "status": "ACTIVE", "created_at": "2024-01-01T00:00:00Z",
-        "total_donations": 125000, "total_causes": 3, "verified": True
+        "total_donations": 125000, "total_causes": 3, "verified": True,
+        "photo_gallery": [
+            "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=School+Building",
+            "https://via.placeholder.com/400x300/059669/FFFFFF?text=Medical+Camp",
+            "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Food+Distribution",
+            "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Children+Learning"
+        ],
+        "contact_person": "Dr. Sarah Johnson",
+        "contact_phone": "+91-9876543210",
+        "contact_email": "sarah@hopetrust.org",
+        "registration_number": "NGO/2024/001",
+        "pan_number": "AAACH1234H",
+        "bank_details": {
+            "account_number": "1234567890",
+            "bank_name": "State Bank of India",
+            "ifsc_code": "SBIN0001234",
+            "branch": "Mumbai Main Branch"
+        }
     },
     {
         "id": 2, "name": "Care Works", "slug": "care-works",
-        "description": "Working together to create positive change in communities",
+        "description": "Committed to improving healthcare access and quality through mobile clinics, health awareness programs, and medical equipment distribution.",
         "logo_url": "https://via.placeholder.com/200x200/059669/FFFFFF?text=Care+Works",
         "contact_email": "info@careworks.org", "website_url": "https://careworks.org",
+        "phone": "+91-9876543211", "address": "456 Care Avenue, Delhi, Delhi 110001",
         "status": "ACTIVE", "created_at": "2024-01-02T00:00:00Z",
-        "total_donations": 300000, "total_causes": 5, "verified": True
+        "total_donations": 300000, "total_causes": 5, "verified": True,
+        "photo_gallery": [
+            "https://via.placeholder.com/400x300/059669/FFFFFF?text=Mobile+Clinic",
+            "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Health+Camp",
+            "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Medical+Equipment",
+            "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Patient+Care"
+        ],
+        "contact_person": "Dr. Rajesh Kumar",
+        "contact_phone": "+91-9876543211",
+        "contact_email": "rajesh@careworks.org",
+        "registration_number": "NGO/2024/002",
+        "pan_number": "AAACH1235H",
+        "bank_details": {
+            "account_number": "2345678901",
+            "bank_name": "HDFC Bank",
+            "ifsc_code": "HDFC0001234",
+            "branch": "Delhi Central Branch"
+        }
     },
     {
         "id": 3, "name": "Health First Foundation", "slug": "health-first",
-        "description": "Promoting healthcare access and medical support",
+        "description": "Promoting health and wellness in underserved communities through preventive healthcare, nutrition programs, and health education initiatives.",
         "logo_url": "https://via.placeholder.com/200x200/DC2626/FFFFFF?text=Health+First",
         "contact_email": "contact@healthfirst.org", "website_url": "https://healthfirst.org",
+        "phone": "+91-9876543212", "address": "789 Health Road, Bangalore, Karnataka 560001",
         "status": "ACTIVE", "created_at": "2024-01-03T00:00:00Z",
-        "total_donations": 200000, "total_causes": 4, "verified": True
+        "total_donations": 200000, "total_causes": 4, "verified": True,
+        "photo_gallery": [
+            "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Health+Center",
+            "https://via.placeholder.com/400x300/059669/FFFFFF?text=Nutrition+Program",
+            "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Health+Education",
+            "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Community+Outreach"
+        ],
+        "contact_person": "Dr. Priya Sharma",
+        "contact_phone": "+91-9876543212",
+        "contact_email": "priya@healthfirst.org",
+        "registration_number": "NGO/2024/003",
+        "pan_number": "AAACH1236H",
+        "bank_details": {
+            "account_number": "3456789012",
+            "bank_name": "ICICI Bank",
+            "ifsc_code": "ICIC0001234",
+            "branch": "Bangalore Main Branch"
+        }
+    }
+]
+
+# Donor storage for detailed donor information
+donors_storage = [
+    {
+        "id": 1,
+        "name": "John Smith",
+        "email": "john.smith@email.com",
+        "phone": "+91-9876543210",
+        "address": "123 Main Street, Mumbai, Maharashtra 400001",
+        "total_donations": 50000,
+        "donation_count": 12,
+        "last_donation_date": "2024-01-15T00:00:00Z",
+        "preferred_categories": ["Education", "Healthcare"],
+        "donation_history": [
+            {
+                "id": 1,
+                "cause_id": 1,
+                "cause_title": "Emergency Food Relief",
+                "ngo_name": "Hope Trust",
+                "amount": 5000,
+                "date": "2024-01-15T00:00:00Z",
+                "status": "COMPLETED"
+            },
+            {
+                "id": 2,
+                "cause_id": 2,
+                "cause_title": "School Supplies Drive",
+                "ngo_name": "Hope Trust",
+                "amount": 10000,
+                "date": "2024-01-10T00:00:00Z",
+                "status": "COMPLETED"
+            }
+        ],
+        "payment_methods": ["Credit Card", "UPI"],
+        "tax_exemption": True,
+        "pan_number": "ABCDE1234F"
+    },
+    {
+        "id": 2,
+        "name": "Sarah Johnson",
+        "email": "sarah.johnson@email.com",
+        "phone": "+91-9876543211",
+        "address": "456 Park Avenue, Delhi, Delhi 110001",
+        "total_donations": 75000,
+        "donation_count": 8,
+        "last_donation_date": "2024-01-12T00:00:00Z",
+        "preferred_categories": ["Healthcare", "Emergency Relief"],
+        "donation_history": [
+            {
+                "id": 3,
+                "cause_id": 3,
+                "cause_title": "Medical Equipment Fund",
+                "ngo_name": "Care Works",
+                "amount": 15000,
+                "date": "2024-01-12T00:00:00Z",
+                "status": "COMPLETED"
+            },
+            {
+                "id": 4,
+                "cause_id": 4,
+                "cause_title": "Emergency Relief Fund",
+                "ngo_name": "Care Works",
+                "amount": 20000,
+                "date": "2024-01-08T00:00:00Z",
+                "status": "COMPLETED"
+            }
+        ],
+        "payment_methods": ["Bank Transfer", "UPI"],
+        "tax_exemption": True,
+        "pan_number": "FGHIJ5678K"
+    },
+    {
+        "id": 3,
+        "name": "Michael Brown",
+        "email": "michael.brown@email.com",
+        "phone": "+91-9876543212",
+        "address": "789 Garden Road, Bangalore, Karnataka 560001",
+        "total_donations": 100000,
+        "donation_count": 15,
+        "last_donation_date": "2024-01-18T00:00:00Z",
+        "preferred_categories": ["Education", "Women & Children"],
+        "donation_history": [
+            {
+                "id": 5,
+                "cause_id": 5,
+                "cause_title": "Educational Materials Fund",
+                "ngo_name": "Health First Foundation",
+                "amount": 25000,
+                "date": "2024-01-18T00:00:00Z",
+                "status": "COMPLETED"
+            },
+            {
+                "id": 6,
+                "cause_id": 6,
+                "cause_title": "Women Empowerment Program",
+                "ngo_name": "Health First Foundation",
+                "amount": 30000,
+                "date": "2024-01-14T00:00:00Z",
+                "status": "COMPLETED"
+            }
+        ],
+        "payment_methods": ["Credit Card", "Bank Transfer"],
+        "tax_exemption": True,
+        "pan_number": "KLMNO9012P"
     }
 ]
 
@@ -976,6 +1136,25 @@ async def get_ngo_details(ngo_id: int):
             "cause_count": len(ngo_causes),
             "active_causes": len([c for c in ngo_causes if c["status"] == "LIVE"]),
             "completed_causes": len([c for c in ngo_causes if c["status"] == "FUNDED"])
+        }
+    }
+
+@app.get("/admin/donors/{donor_id}/details")
+async def get_donor_details(donor_id: int):
+    """Get detailed donor information including donation history and preferences"""
+    donor = next((d for d in donors_storage if d["id"] == donor_id), None)
+    if not donor:
+        raise HTTPException(status_code=404, detail="Donor not found")
+    
+    return {
+        "donor": donor,
+        "donation_summary": {
+            "total_donations": donor["total_donations"],
+            "donation_count": donor["donation_count"],
+            "last_donation_date": donor["last_donation_date"],
+            "preferred_categories": donor["preferred_categories"],
+            "payment_methods": donor["payment_methods"],
+            "tax_exemption": donor["tax_exemption"]
         }
     }
 

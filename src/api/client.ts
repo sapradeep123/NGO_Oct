@@ -448,6 +448,11 @@ class ApiClient {
     return response.data
   }
 
+  async getDonorDetails(donorId: number): Promise<any> {
+    const response = await this.client.get(`/admin/donors/${donorId}/details`)
+    return response.data
+  }
+
   // Runtime config
   async getRuntimeConfig(): Promise<{ apiBaseUrl: string }> {
     const response = await this.client.get('/.well-known/runtime-config')

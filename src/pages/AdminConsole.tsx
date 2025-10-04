@@ -81,8 +81,10 @@ const AdminConsole: React.FC = () => {
   // Detail view state
   const [vendorDetailsOpen, setVendorDetailsOpen] = useState(false)
   const [ngoDetailsOpen, setNgoDetailsOpen] = useState(false)
+  const [donorDetailsOpen, setDonorDetailsOpen] = useState(false)
   const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
   const [selectedNgoId, setSelectedNgoId] = useState<number | null>(null)
+  const [selectedDonorId, setSelectedDonorId] = useState<number | null>(null)
 
   // Fetch categories
   const { data: categories = [] } = useQuery({
@@ -138,6 +140,13 @@ const AdminConsole: React.FC = () => {
     queryKey: ['ngo-details', selectedNgoId],
     queryFn: () => apiClient.getNgoDetails(selectedNgoId!),
     enabled: !!selectedNgoId,
+  })
+
+  // Fetch donor details
+  const { data: donorDetails, isLoading: donorDetailsLoading } = useQuery({
+    queryKey: ['donor-details', selectedDonorId],
+    queryFn: () => apiClient.getDonorDetails(selectedDonorId!),
+    enabled: !!selectedDonorId,
   })
 
   // Create category mutation
@@ -275,6 +284,11 @@ const AdminConsole: React.FC = () => {
   const handleViewNgoDetails = (ngoId: number) => {
     setSelectedNgoId(ngoId)
     setNgoDetailsOpen(true)
+  }
+
+  const handleViewDonorDetails = (donorId: number) => {
+    setSelectedDonorId(donorId)
+    setDonorDetailsOpen(true)
   }
 
   // Helper function to get available vendors for selected NGO and category
@@ -982,6 +996,21 @@ const AdminConsole: React.FC = () => {
                 { field: 'last_donation_date', headerName: 'Last Donation', width: 150, renderCell: (params: any) => 
                   params.value ? new Date(params.value).toLocaleDateString() : 'Never'
                 },
+                {
+                  field: 'actions',
+                  headerName: 'Actions',
+                  width: 120,
+                  renderCell: (params: any) => (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleViewDonorDetails(params.row.id)}
+                      sx={{ mr: 1 }}
+                    >
+                      View Details
+                    </Button>
+                  )
+                }
               ]}
               loading={donorsLoading}
             />
@@ -1522,10 +1551,39 @@ const AdminConsole: React.FC = () => {
                 {/* NGO Basic Info */}
                 <Card sx={{ mb: 3 }}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      {ngoDetails.ngo.name}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <img 
+                        src={ngoDetails.ngo.logo_url} 
+                        alt={ngoDetails.ngo.name}
+                        style={{ width: 80, height: 80, borderRadius: 8, marginRight: 16 }}
+                      />
+                      <Box>
+                        <Typography variant="h5" gutterBottom>
+                          {ngoDetails.ngo.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {ngoDetails.ngo.description}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
                     <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Registration Number:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.registration_number}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">PAN Number:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.pan_number}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Contact Person:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.contact_person}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Phone:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.phone}</Typography>
+                      </Grid>
                       <Grid item xs={12} md={6}>
                         <Typography variant="body2" color="text.secondary">Email:</Typography>
                         <Typography variant="body1">{ngoDetails.ngo.contact_email}</Typography>
@@ -1537,6 +1595,10 @@ const AdminConsole: React.FC = () => {
                             {ngoDetails.ngo.website_url}
                           </a>
                         </Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">Address:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.address}</Typography>
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <Typography variant="body2" color="text.secondary">Status:</Typography>
@@ -1554,9 +1616,55 @@ const AdminConsole: React.FC = () => {
                           size="small"
                         />
                       </Grid>
-                      <Grid item xs={12}>
-                        <Typography variant="body2" color="text.secondary">Description:</Typography>
-                        <Typography variant="body1">{ngoDetails.ngo.description}</Typography>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Photo Gallery */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Photo Gallery</Typography>
+                    <Grid container spacing={2}>
+                      {ngoDetails.ngo.photo_gallery?.map((photo: string, index: number) => (
+                        <Grid item xs={12} sm={6} md={3} key={index}>
+                          <img 
+                            src={photo} 
+                            alt={`Gallery ${index + 1}`}
+                            style={{ 
+                              width: '100%', 
+                              height: 200, 
+                              objectFit: 'cover', 
+                              borderRadius: 8,
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => window.open(photo, '_blank')}
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Bank Details */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Bank Details</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Bank Name:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.bank_details?.bank_name}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Account Number:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.bank_details?.account_number}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">IFSC Code:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.bank_details?.ifsc_code}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Branch:</Typography>
+                        <Typography variant="body1">{ngoDetails.ngo.bank_details?.branch}</Typography>
                       </Grid>
                     </Grid>
                   </CardContent>
@@ -1694,6 +1802,135 @@ const AdminConsole: React.FC = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setNgoDetailsOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Donor Details Dialog */}
+        <Dialog open={donorDetailsOpen} onClose={() => setDonorDetailsOpen(false)} maxWidth="lg" fullWidth>
+          <DialogTitle>Donor Details</DialogTitle>
+          <DialogContent>
+            {donorDetailsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : donorDetails ? (
+              <Box>
+                {/* Donor Basic Info */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      {donorDetails.donor.name}
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Email:</Typography>
+                        <Typography variant="body1">{donorDetails.donor.email}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Phone:</Typography>
+                        <Typography variant="body1">{donorDetails.donor.phone}</Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">Address:</Typography>
+                        <Typography variant="body1">{donorDetails.donor.address}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">PAN Number:</Typography>
+                        <Typography variant="body1">{donorDetails.donor.pan_number}</Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="text.secondary">Tax Exemption:</Typography>
+                        <Chip 
+                          label={donorDetails.donor.tax_exemption ? 'Yes' : 'No'} 
+                          color={donorDetails.donor.tax_exemption ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Donation Summary */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Donation Summary</Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Total Donations:</Typography>
+                        <Typography variant="h6" color="primary">
+                          ₹{donorDetails.donor.total_donations.toLocaleString()}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Donation Count:</Typography>
+                        <Typography variant="h6" color="info.main">
+                          {donorDetails.donor.donation_count}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Last Donation:</Typography>
+                        <Typography variant="h6" color="success.main">
+                          {donorDetails.donor.last_donation_date ? 
+                            new Date(donorDetails.donor.last_donation_date).toLocaleDateString() : 'Never'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <Typography variant="body2" color="text.secondary">Payment Methods:</Typography>
+                        <Typography variant="body1">
+                          {donorDetails.donor.payment_methods?.join(', ')}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary">Preferred Categories:</Typography>
+                      <Box sx={{ mt: 1 }}>
+                        {donorDetails.donor.preferred_categories?.map((category: string, index: number) => (
+                          <Chip key={index} label={category} size="small" sx={{ mr: 1, mb: 1 }} />
+                        ))}
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+
+                {/* Donation History */}
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>Donation History</Typography>
+                    {donorDetails.donor.donation_history?.length > 0 ? (
+                      <DataTable
+                        rows={donorDetails.donor.donation_history}
+                        columns={[
+                          { field: 'cause_title', headerName: 'Cause', width: 200 },
+                          { field: 'ngo_name', headerName: 'NGO', width: 150 },
+                          { field: 'amount', headerName: 'Amount', width: 120, renderCell: (params: any) =>
+                            `₹${params.value.toLocaleString()}`
+                          },
+                          { field: 'status', headerName: 'Status', width: 100, renderCell: (params: any) => (
+                            <Chip 
+                              label={params.value} 
+                              color={params.value === 'COMPLETED' ? 'success' : 'warning'}
+                              size="small"
+                            />
+                          )},
+                          { field: 'date', headerName: 'Date', width: 120, renderCell: (params: any) =>
+                            new Date(params.value).toLocaleDateString()
+                          }
+                        ]}
+                        loading={false}
+                        getRowId={(row) => row.id.toString()}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">No donation history found</Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Box>
+            ) : (
+              <Typography>No donor details available</Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDonorDetailsOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
       </Container>
