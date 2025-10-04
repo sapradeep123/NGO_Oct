@@ -257,9 +257,9 @@ causes_storage = [
         "current_amount": 75000,
         "status": "LIVE",
         "category_id": 1,
-        "ngo_id": 1,
+        "ngo_ids": [1],  # Hope Trust
         "category_name": "Food & Nutrition",
-        "ngo_name": "Hope Trust",
+        "ngo_names": ["Hope Trust"],
         "image_url": "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Daily+Meals",
         "created_at": "2024-01-05T00:00:00Z",
         "donation_count": 45
@@ -272,9 +272,9 @@ causes_storage = [
         "current_amount": 180000,
         "status": "LIVE",
         "category_id": 2,
-        "ngo_id": 2,
+        "ngo_ids": [2],  # Care Works
         "category_name": "Education",
-        "ngo_name": "Care Works",
+        "ngo_names": ["Care Works"],
         "image_url": "https://via.placeholder.com/400x300/059669/FFFFFF?text=School+Infrastructure",
         "created_at": "2024-01-08T00:00:00Z",
         "donation_count": 32
@@ -287,9 +287,9 @@ causes_storage = [
         "current_amount": 120000,
         "status": "LIVE",
         "category_id": 3,
-        "ngo_id": 3,
+        "ngo_ids": [3],  # Health First Foundation
         "category_name": "Healthcare",
-        "ngo_name": "Health First Foundation",
+        "ngo_names": ["Health First Foundation"],
         "image_url": "https://via.placeholder.com/400x300/DC2626/FFFFFF?text=Mobile+Clinic",
         "created_at": "2024-01-10T00:00:00Z",
         "donation_count": 28
@@ -302,9 +302,9 @@ causes_storage = [
         "current_amount": 95000,
         "status": "LIVE",
         "category_id": 4,
-        "ngo_id": 1,
+        "ngo_ids": [1],  # Hope Trust
         "category_name": "Emergency Relief",
-        "ngo_name": "Hope Trust",
+        "ngo_names": ["Hope Trust"],
         "image_url": "https://via.placeholder.com/400x300/7C3AED/FFFFFF?text=Flood+Relief",
         "created_at": "2024-01-12T00:00:00Z",
         "donation_count": 18
@@ -317,9 +317,9 @@ causes_storage = [
         "current_amount": 65000,
         "status": "LIVE",
         "category_id": 5,
-        "ngo_id": 2,
+        "ngo_ids": [2],  # Care Works
         "category_name": "Women & Children",
-        "ngo_name": "Care Works",
+        "ngo_names": ["Care Works"],
         "image_url": "https://via.placeholder.com/400x300/F59E0B/FFFFFF?text=Women+Empowerment",
         "created_at": datetime.now().isoformat() + "Z",
         "donation_count": 22
@@ -334,10 +334,9 @@ pending_causes_storage = [
         "target_amount": 100000,
         "current_amount": 0,
         "status": "PENDING_APPROVAL",
-        "ngo_name": "Hope Trust",
+        "ngo_ids": [1],  # Hope Trust
         "category_name": "Emergency Relief",
-        "created_at": datetime.now().isoformat() + "Z",
-        "ngo_id": 1,
+        "ngo_names": ["Hope Trust"],
         "category_id": 4
     },
     {
@@ -347,10 +346,9 @@ pending_causes_storage = [
         "target_amount": 200000,
         "current_amount": 0,
         "status": "PENDING_APPROVAL",
-        "ngo_name": "Care Works",
+        "ngo_ids": [2],  # Care Works
         "category_name": "Education",
-        "created_at": "2024-01-14T00:00:00Z",
-        "ngo_id": 2,
+        "ngo_names": ["Care Works"],
         "category_id": 2
     }
 ]
@@ -703,15 +701,24 @@ async def create_cause(
     description: str = Form(...),
     target_amount: int = Form(...),
     category_id: int = Form(...),
-    ngo_id: int = Form(...),
+    ngo_ids: str = Form(...),  # Comma-separated list of NGO IDs
     image_url: str = Form(None)
 ):
-    """Create a new cause"""
+    """Create a new cause that can be associated with multiple NGOs"""
     new_id = max([cause["id"] for cause in causes_storage + pending_causes_storage], default=0) + 1
     
-    # Find category and NGO names
+    # Parse NGO IDs
+    ngo_id_list = [int(id.strip()) for id in ngo_ids.split(',') if id.strip()]
+    
+    # Find category name
     category = next((cat for cat in categories_storage if cat["id"] == category_id), None)
-    ngo = next((ngo for ngo in ngos_storage if ngo["id"] == ngo_id), None)
+    
+    # Find NGO names
+    ngo_names = []
+    for ngo_id in ngo_id_list:
+        ngo = next((ngo for ngo in ngos_storage if ngo["id"] == ngo_id), None)
+        if ngo:
+            ngo_names.append(ngo["name"])
     
     new_cause = {
         "id": new_id,
@@ -721,11 +728,12 @@ async def create_cause(
         "current_amount": 0,
         "status": "PENDING_APPROVAL",
         "category_id": category_id,
-        "ngo_id": ngo_id,
+        "ngo_ids": ngo_id_list,  # List of NGO IDs
         "image_url": image_url or "https://via.placeholder.com/400x300/2563EB/FFFFFF?text=Cause+Image",
         "created_at": datetime.now().isoformat() + "Z",
-        "ngo_name": ngo["name"] if ngo else "Unknown NGO",
-        "category_name": category["name"] if category else "Unknown Category"
+        "ngo_names": ngo_names,  # List of NGO names
+        "category_name": category["name"] if category else "Unknown Category",
+        "donation_count": 0
     }
     pending_causes_storage.append(new_cause)
     return new_cause
@@ -1093,7 +1101,7 @@ async def get_ngo_details(ngo_id: int):
             })
     
     # Get causes
-    ngo_causes = [c for c in causes_storage if c["ngo_id"] == ngo_id]
+    ngo_causes = [c for c in causes_storage if ngo_id in c.get("ngo_ids", [])]
     enriched_causes = []
     for cause in ngo_causes:
         category = next((c for c in categories_storage if c["id"] == cause["category_id"]), None)

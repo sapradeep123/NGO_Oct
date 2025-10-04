@@ -57,7 +57,7 @@ const AdminConsole: React.FC = () => {
     description: '', 
     target_amount: '', 
     category_id: '', 
-    ngo_id: '' 
+    ngo_ids: [] as number[]  // Changed to array for multiple NGOs
   })
   const [newNGO, setNewNGO] = useState({ 
     name: '', 
@@ -164,13 +164,18 @@ const AdminConsole: React.FC = () => {
   // Create cause mutation
   const createCauseMutation = useMutation({
     mutationFn: async (causeData: any) => {
-      return apiClient.createCause(causeData)
+      // Convert ngo_ids array to comma-separated string for backend
+      const dataToSend = {
+        ...causeData,
+        ngo_ids: causeData.ngo_ids.join(',')
+      }
+      return apiClient.createCause(dataToSend)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-pending-causes'] })
       queryClient.invalidateQueries({ queryKey: ['causes'] })
       setCreateCauseOpen(false)
-      setNewCause({ title: '', description: '', target_amount: '', category_id: '', ngo_id: '' })
+      setNewCause({ title: '', description: '', target_amount: '', category_id: '', ngo_ids: [] })
     },
   })
 
@@ -827,7 +832,9 @@ const AdminConsole: React.FC = () => {
               columns={[
                 { field: 'id', headerName: 'ID', width: 80 },
                 { field: 'title', headerName: 'Cause Title', width: 200 },
-                { field: 'ngo_name', headerName: 'NGO', width: 150 },
+                { field: 'ngo_names', headerName: 'NGOs', width: 200, renderCell: (params: any) => 
+                  Array.isArray(params.value) ? params.value.join(', ') : params.value
+                },
                 { field: 'category_name', headerName: 'Category', width: 150 },
                 { field: 'target_amount', headerName: 'Target Amount', width: 150, renderCell: (params: any) => 
                   `₹${params.value?.toLocaleString() || '0'}`
@@ -1178,11 +1185,16 @@ const AdminConsole: React.FC = () => {
               </Select>
             </FormControl>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>NGO</InputLabel>
+              <InputLabel>NGOs (Select Multiple)</InputLabel>
               <Select
-                value={newCause.ngo_id}
-                onChange={(e) => setNewCause({ ...newCause, ngo_id: e.target.value })}
-                label="NGO"
+                multiple
+                value={newCause.ngo_ids}
+                onChange={(e) => setNewCause({ ...newCause, ngo_ids: e.target.value as number[] })}
+                label="NGOs (Select Multiple)"
+                renderValue={(selected) => {
+                  const selectedNGOs = ngos.filter(ngo => selected.includes(ngo.id))
+                  return selectedNGOs.map(ngo => ngo.name).join(', ')
+                }}
               >
                 {ngos.map((ngo) => (
                   <MenuItem key={ngo.id} value={ngo.id}>
@@ -1197,7 +1209,7 @@ const AdminConsole: React.FC = () => {
             <Button 
               onClick={handleCreateCause} 
               variant="contained"
-              disabled={createCauseMutation.isPending || !newCause.title || !newCause.category_id || !newCause.ngo_id}
+              disabled={createCauseMutation.isPending || !newCause.title || !newCause.category_id || newCause.ngo_ids.length === 0}
             >
               {createCauseMutation.isPending ? <CircularProgress size={20} /> : 'Create Cause'}
             </Button>
