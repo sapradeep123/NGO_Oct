@@ -10,6 +10,10 @@ export interface User {
   is_active: boolean
   created_at: string
   role?: string
+  ngo_name?: string
+  vendor_name?: string
+  ngo_id?: number
+  vendor_id?: number
 }
 
 export interface LoginRequest {
@@ -463,6 +467,47 @@ class ApiClient {
 
   async getDonorDetails(donorId: number): Promise<any> {
     const response = await this.client.get(`/admin/donors/${donorId}/details`)
+    return response.data
+  }
+
+  // User Management API methods
+  async getAdminUsers(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/users')
+    return response.data.value || []
+  }
+
+  async resetUserPassword(userId: number, newPassword: string): Promise<any> {
+    const formData = new FormData()
+    formData.append('new_password', newPassword)
+    const response = await this.client.post(`/admin/users/${userId}/reset-password`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  }
+
+  async createUser(userData: any): Promise<any> {
+    const formData = new FormData()
+    Object.keys(userData).forEach(key => {
+      if (userData[key] !== null && userData[key] !== undefined) {
+        formData.append(key, userData[key])
+      }
+    })
+    const response = await this.client.post('/admin/users', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  }
+
+  async updateUser(userId: number, userData: any): Promise<any> {
+    const formData = new FormData()
+    Object.keys(userData).forEach(key => {
+      if (userData[key] !== null && userData[key] !== undefined) {
+        formData.append(key, userData[key])
+      }
+    })
+    const response = await this.client.put(`/admin/users/${userId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
     return response.data
   }
 

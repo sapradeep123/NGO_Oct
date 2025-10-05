@@ -1,8 +1,109 @@
 # In-memory storage for demo purposes
-from fastapi import FastAPI, Form, Request, HTTPException
+from fastapi import FastAPI, Form, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from datetime import datetime
+
+# Helper function to get current user from request
+async def get_current_user_from_request(request: Request):
+    """Extract current user information from the request token"""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return {
+            "id": 1,
+            "email": "admin@example.com",
+            "first_name": "Admin",
+            "last_name": "User",
+            "role": "PLATFORM_ADMIN",
+            "is_active": True,
+            "created_at": "2024-01-01T00:00:00Z"
+        }
+    
+    token = auth_header[7:]  # Remove "Bearer " prefix
+    
+    if token.startswith("demo_token_"):
+        email = token[11:]  # Remove "demo_token_" prefix
+        
+        if email == "admin@example.com":
+            return {
+                "id": 1,
+                "email": "admin@example.com",
+                "first_name": "Admin",
+                "last_name": "User",
+                "role": "PLATFORM_ADMIN",
+                "is_active": True,
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+        
+        # Check NGO users
+        for ngo in ngos_storage:
+            ngo_admin_email = f"ngo.{ngo['slug']}.admin@example.com"
+            ngo_staff_email = f"ngo.{ngo['slug']}.staff@example.com"
+            
+            if email == ngo_admin_email:
+                return {
+                    "id": len(ngos_storage) * 2 + 1,
+                    "email": email,
+                    "first_name": ngo['name'].split()[0],
+                    "last_name": "Admin",
+                    "role": "NGO_ADMIN",
+                    "is_active": True,
+                    "created_at": ngo['created_at'],
+                    "ngo_id": ngo['id'],
+                    "ngo_name": ngo['name']
+                }
+            elif email == ngo_staff_email:
+                return {
+                    "id": len(ngos_storage) * 2 + 2,
+                    "email": email,
+                    "first_name": ngo['name'].split()[0],
+                    "last_name": "Staff",
+                    "role": "NGO_STAFF",
+                    "is_active": True,
+                    "created_at": ngo['created_at'],
+                    "ngo_id": ngo['id'],
+                    "ngo_name": ngo['name']
+                }
+        
+        # Check Vendor users
+        for vendor in vendors_storage:
+            vendor_email = f"vendor.{vendor['name'].lower().replace(' ', '.')}@example.com"
+            if email == vendor_email:
+                return {
+                    "id": len(ngos_storage) * 2 + len(vendors_storage) + 1,
+                    "email": email,
+                    "first_name": vendor['name'].split()[0],
+                    "last_name": "Vendor",
+                    "role": "VENDOR",
+                    "is_active": True,
+                    "created_at": vendor['created_at'],
+                    "vendor_id": vendor['id'],
+                    "vendor_name": vendor['name']
+                }
+        
+        # Check Donor users
+        for donor in donors_storage:
+            if email == donor['email']:
+                return {
+                    "id": len(ngos_storage) * 2 + len(vendors_storage) + len(donors_storage) + 1,
+                    "email": email,
+                    "first_name": donor['name'].split()[0],
+                    "last_name": donor['name'].split()[-1] if len(donor['name'].split()) > 1 else "",
+                    "role": "DONOR",
+                    "is_active": True,
+                    "created_at": "2024-01-01T00:00:00Z"
+                }
+    
+    # Default to admin if token not recognized
+    return {
+        "id": 1,
+        "email": "admin@example.com",
+        "first_name": "Admin",
+        "last_name": "User",
+        "role": "PLATFORM_ADMIN",
+        "is_active": True,
+        "created_at": "2024-01-01T00:00:00Z"
+    }
 
 categories_storage = [
     {
@@ -539,51 +640,123 @@ async def get_demo_users():
 
 # Admin endpoints
 @app.get("/admin/ngos")
-async def get_admin_ngos():
-    """Get all NGOs for admin console"""
-    return {
-        "value": ngos_storage,
-        "Count": len(ngos_storage)
-    }
+async def get_admin_ngos(request: Request):
+    """Get NGOs based on user role"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] == "PLATFORM_ADMIN":
+        # Platform admin sees all NGOs
+        return {
+            "value": ngos_storage,
+            "Count": len(ngos_storage)
+        }
+    elif current_user["role"] in ["NGO_ADMIN", "NGO_STAFF"]:
+        # NGO users see only their own NGO
+        user_ngo = next((ngo for ngo in ngos_storage if ngo["id"] == current_user.get("ngo_id")), None)
+        if user_ngo:
+            return {
+                "value": [user_ngo],
+                "Count": 1
+            }
+        else:
+            return {
+                "value": [],
+                "Count": 0
+            }
+    else:
+        # Other roles see no NGOs
+        return {
+            "value": [],
+            "Count": 0
+        }
 
 @app.get("/admin/vendors")
-async def get_admin_vendors():
-    """Get all vendors for admin console"""
-    return {
-        "value": vendors_storage,
-        "Count": len(vendors_storage)
-    }
+async def get_admin_vendors(request: Request):
+    """Get vendors based on user role"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] == "PLATFORM_ADMIN":
+        # Platform admin sees all vendors
+        return {
+            "value": vendors_storage,
+            "Count": len(vendors_storage)
+        }
+    elif current_user["role"] == "VENDOR":
+        # Vendor users see only their own vendor info
+        user_vendor = next((vendor for vendor in vendors_storage if vendor["id"] == current_user.get("vendor_id")), None)
+        if user_vendor:
+            return {
+                "value": [user_vendor],
+                "Count": 1
+            }
+        else:
+            return {
+                "value": [],
+                "Count": 0
+            }
+    elif current_user["role"] in ["NGO_ADMIN", "NGO_STAFF"]:
+        # NGO users see only vendors associated with their NGO
+        user_ngo_id = current_user.get("ngo_id")
+        if user_ngo_id:
+            # Get vendors associated with this NGO
+            associated_vendors = []
+            for association in ngo_vendor_associations:
+                if association["ngo_id"] == user_ngo_id and association["status"] == "ACTIVE":
+                    vendor = next((v for v in vendors_storage if v["id"] == association["vendor_id"]), None)
+                    if vendor:
+                        associated_vendors.append(vendor)
+            return {
+                "value": associated_vendors,
+                "Count": len(associated_vendors)
+            }
+        else:
+            return {
+                "value": [],
+                "Count": 0
+            }
+    else:
+        # Other roles see no vendors
+        return {
+            "value": [],
+            "Count": 0
+        }
 
 @app.get("/admin/donors")
-async def get_admin_donors():
-    """Get all donors for admin console"""
-    return {
-        "value": [
-            {
-                "id": 1,
-                "first_name": "Arya",
-                "last_name": "Donor",
-                "email": "donor.arya@example.com",
-                "phone": "+1234567894",
-                "created_at": "2024-01-01T00:00:00Z",
-                "total_donations": 15000,
-                "total_causes_supported": 3,
-                "last_donation_date": "2024-01-15T10:30:00Z"
-            },
-            {
-                "id": 2,
-                "first_name": "John",
-                "last_name": "Smith",
-                "email": "john.smith@example.com",
-                "phone": "+1234567895",
-                "created_at": "2024-01-03T00:00:00Z",
-                "total_donations": 25000,
-                "total_causes_supported": 5,
-                "last_donation_date": "2024-01-20T14:20:00Z"
+async def get_admin_donors(request: Request):
+    """Get donors based on user role"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] == "PLATFORM_ADMIN":
+        # Platform admin sees all donors
+        return {
+            "value": donors_storage,
+            "Count": len(donors_storage)
+        }
+    elif current_user["role"] in ["NGO_ADMIN", "NGO_STAFF"]:
+        # NGO users see only donors who donated to their NGO
+        user_ngo_id = current_user.get("ngo_id")
+        if user_ngo_id:
+            # Filter donors who donated to this NGO (simplified logic)
+            ngo_donors = []
+            for donor in donors_storage:
+                # Check if donor has donation history (simplified for demo)
+                if donor.get("last_donation_date"):  # If they have donation history
+                    ngo_donors.append(donor)
+            return {
+                "value": ngo_donors,
+                "Count": len(ngo_donors)
             }
-        ],
-        "Count": 2
-    }
+        else:
+            return {
+                "value": [],
+                "Count": 0
+            }
+    else:
+        # Other roles see no donors
+        return {
+            "value": [],
+            "Count": 0
+        }
 
 @app.get("/admin/payments")
 async def get_admin_payments():
@@ -819,33 +992,154 @@ async def get_pending_causes():
 
 @app.post("/auth/login")
 async def login(username: str = Form(...), password: str = Form(...)):
-    # Simple demo login - in production, verify against database
-    demo_users = {
-        "admin@example.com": {"password": "Admin@123", "role": "PLATFORM_ADMIN", "id": 1, "first_name": "Admin", "last_name": "User"},
-        "ngo.hope.admin@example.com": {"password": "Ngo@123", "role": "NGO_ADMIN", "id": 2, "first_name": "Hope", "last_name": "Admin"},
-        "ngo.hope.staff@example.com": {"password": "Staff@123", "role": "NGO_STAFF", "id": 3, "first_name": "Hope", "last_name": "Staff"},
-        "vendor.alpha@example.com": {"password": "Vendor@123", "role": "VENDOR", "id": 4, "first_name": "Alpha", "last_name": "Vendor"},
-        "donor.arya@example.com": {"password": "Donor@123", "role": "DONOR", "id": 5, "first_name": "Arya", "last_name": "Donor"}
+    # Dynamic login system that works with all users
+    demo_passwords = {
+        "admin@example.com": "Admin@123",
+        "donor.arya@example.com": "Donor@123"
     }
     
-    if username in demo_users and demo_users[username]["password"] == password:
+    # Check if it's a known demo user
+    if username in demo_passwords and demo_passwords[username] == password:
         return {
             "access_token": f"demo_token_{username}",
             "refresh_token": f"demo_refresh_{username}",
             "token_type": "bearer"
         }
-    else:
-        return {"error": "Invalid credentials"}
+    
+    # Check NGO users
+    for ngo in ngos_storage:
+        ngo_admin_email = f"ngo.{ngo['slug']}.admin@example.com"
+        ngo_staff_email = f"ngo.{ngo['slug']}.staff@example.com"
+        
+        if username == ngo_admin_email and password == "Ngo@123":
+            return {
+                "access_token": f"demo_token_{username}",
+                "refresh_token": f"demo_refresh_{username}",
+                "token_type": "bearer"
+            }
+        elif username == ngo_staff_email and password == "Staff@123":
+            return {
+                "access_token": f"demo_token_{username}",
+                "refresh_token": f"demo_refresh_{username}",
+                "token_type": "bearer"
+            }
+    
+    # Check Vendor users
+    for vendor in vendors_storage:
+        vendor_email = f"vendor.{vendor['name'].lower().replace(' ', '.')}@example.com"
+        if username == vendor_email and password == "Vendor@123":
+            return {
+                "access_token": f"demo_token_{username}",
+                "refresh_token": f"demo_refresh_{username}",
+                "token_type": "bearer"
+            }
+    
+    # Check Donor users
+    for donor in donors_storage:
+        if username == donor['email'] and password == "Donor@123":
+            return {
+                "access_token": f"demo_token_{username}",
+                "refresh_token": f"demo_refresh_{username}",
+                "token_type": "bearer"
+            }
+    
+    return {"error": "Invalid credentials"}
 
 @app.get("/auth/me")
 async def get_current_user(request: Request):
-    # This would normally get user from JWT token
-    # For demo purposes, we'll return different users based on the token
-    # In production, you'd decode the JWT token to get user info
+    # Get the authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        # Default to admin if no token
+        return {
+            "id": 1,
+            "email": "admin@example.com",
+            "first_name": "Admin",
+            "last_name": "User",
+            "role": "PLATFORM_ADMIN",
+            "is_active": True,
+            "created_at": "2024-01-01T00:00:00Z"
+        }
     
-    # Demo users data
-    demo_users = {
-        "demo_token_admin@example.com": {
+    token = auth_header[7:]  # Remove "Bearer " prefix
+    
+    # Extract email from token (format: demo_token_email@example.com)
+    if token.startswith("demo_token_"):
+        email = token[11:]  # Remove "demo_token_" prefix
+        
+        # Check if it's admin
+        if email == "admin@example.com":
+            return {
+                "id": 1,
+                "email": "admin@example.com",
+                "first_name": "Admin",
+                "last_name": "User",
+                "role": "PLATFORM_ADMIN",
+                "is_active": True,
+                "created_at": "2024-01-01T00:00:00Z"
+            }
+        
+        # Check NGO users
+        for ngo in ngos_storage:
+            ngo_admin_email = f"ngo.{ngo['slug']}.admin@example.com"
+            ngo_staff_email = f"ngo.{ngo['slug']}.staff@example.com"
+            
+            if email == ngo_admin_email:
+                return {
+                    "id": len(ngos_storage) * 2 + 1,  # Dynamic ID
+                    "email": email,
+                    "first_name": ngo['name'].split()[0],
+                    "last_name": "Admin",
+                    "role": "NGO_ADMIN",
+                    "is_active": True,
+                    "created_at": ngo['created_at'],
+                    "ngo_name": ngo['name'],
+                    "ngo_id": ngo['id']
+                }
+            elif email == ngo_staff_email:
+                return {
+                    "id": len(ngos_storage) * 2 + 2,  # Dynamic ID
+                    "email": email,
+                    "first_name": ngo['name'].split()[0],
+                    "last_name": "Staff",
+                    "role": "NGO_STAFF",
+                    "is_active": True,
+                    "created_at": ngo['created_at'],
+                    "ngo_name": ngo['name'],
+                    "ngo_id": ngo['id']
+                }
+        
+        # Check Vendor users
+        for vendor in vendors_storage:
+            vendor_email = f"vendor.{vendor['name'].lower().replace(' ', '.')}@example.com"
+            if email == vendor_email:
+                return {
+                    "id": len(ngos_storage) * 2 + len(vendors_storage) + 1,  # Dynamic ID
+                    "email": email,
+                    "first_name": vendor['name'].split()[0],
+                    "last_name": "Vendor",
+                    "role": "VENDOR",
+                    "is_active": True,
+                    "created_at": vendor['created_at'],
+                    "vendor_name": vendor['name'],
+                    "vendor_id": vendor['id']
+                }
+        
+        # Check Donor users
+        for donor in donors_storage:
+            if email == donor['email']:
+                return {
+                    "id": len(ngos_storage) * 2 + len(vendors_storage) + len(donors_storage) + 1,  # Dynamic ID
+                    "email": email,
+                    "first_name": donor['name'].split()[0],
+                    "last_name": donor['name'].split()[-1] if len(donor['name'].split()) > 1 else "",
+                    "role": "DONOR",
+                    "is_active": True,
+                    "created_at": "2024-01-01T00:00:00Z"
+                }
+    
+    # Default to admin if token not recognized
+    return {
         "id": 1,
         "email": "admin@example.com",
         "first_name": "Admin",
@@ -853,53 +1147,7 @@ async def get_current_user(request: Request):
         "role": "PLATFORM_ADMIN",
         "is_active": True,
         "created_at": "2024-01-01T00:00:00Z"
-        },
-        "demo_token_ngo.hope.admin@example.com": {
-            "id": 2,
-            "email": "ngo.hope.admin@example.com",
-            "first_name": "Hope",
-            "last_name": "Admin",
-            "role": "NGO_ADMIN",
-            "is_active": True,
-            "created_at": "2024-01-01T00:00:00Z"
-        },
-        "demo_token_ngo.hope.staff@example.com": {
-            "id": 3,
-            "email": "ngo.hope.staff@example.com",
-            "first_name": "Hope",
-            "last_name": "Staff",
-            "role": "NGO_STAFF",
-            "is_active": True,
-            "created_at": "2024-01-01T00:00:00Z"
-        },
-        "demo_token_vendor.alpha@example.com": {
-            "id": 4,
-            "email": "vendor.alpha@example.com",
-            "first_name": "Alpha",
-            "last_name": "Vendor",
-            "role": "VENDOR",
-            "is_active": True,
-            "created_at": "2024-01-01T00:00:00Z"
-        },
-        "demo_token_donor.arya@example.com": {
-            "id": 5,
-            "email": "donor.arya@example.com",
-            "first_name": "Arya",
-            "last_name": "Donor",
-            "role": "DONOR",
-            "is_active": True,
-            "created_at": "2024-01-01T00:00:00Z"
-        }
     }
-    
-    # Get the authorization header
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]  # Remove "Bearer " prefix
-        return demo_users.get(token, demo_users["demo_token_admin@example.com"])
-    
-    # Default to admin if no token
-    return demo_users["demo_token_admin@example.com"]
 
 @app.get("/public/categories")
 async def get_categories():
@@ -992,6 +1240,150 @@ async def delete_ngo_vendor_association(association_id: int):
     global ngo_vendor_associations
     ngo_vendor_associations = [a for a in ngo_vendor_associations if a["id"] != association_id]
     return {"message": "Association deleted successfully"}
+
+# Password reset endpoints for admin
+@app.post("/admin/users/{user_id}/reset-password")
+async def reset_user_password(user_id: int, new_password: str = Form(...)):
+    """Reset password for a user (admin only)"""
+    # In a real application, this would update the database
+    # For demo purposes, we'll return a success message
+    return {
+        "user_id": user_id,
+        "message": f"Password reset successfully for user {user_id}",
+        "new_password": new_password,
+        "reset_at": datetime.now().isoformat() + "Z"
+    }
+
+@app.get("/admin/users")
+async def get_admin_users():
+    """Get all users for admin management - dynamically generated from NGOs, Vendors, and demo users"""
+    users = []
+    
+    # Add Platform Admin
+    users.append({
+        "id": 1,
+        "email": "admin@example.com",
+        "first_name": "Admin",
+        "last_name": "User",
+        "role": "PLATFORM_ADMIN",
+        "is_active": True,
+        "created_at": "2024-01-01T00:00:00Z",
+        "last_login": "2024-01-20T10:30:00Z"
+    })
+    
+    # Add NGO users from existing NGO data
+    for ngo in ngos_storage:
+        # NGO Admin user
+        users.append({
+            "id": len(users) + 1,
+            "email": f"ngo.{ngo['slug']}.admin@example.com",
+            "first_name": ngo['name'].split()[0],
+            "last_name": "Admin",
+            "role": "NGO_ADMIN",
+            "is_active": True,
+            "created_at": ngo['created_at'],
+            "last_login": "2024-01-19T14:20:00Z",
+            "ngo_name": ngo['name']
+        })
+        
+        # NGO Staff user
+        users.append({
+            "id": len(users) + 1,
+            "email": f"ngo.{ngo['slug']}.staff@example.com",
+            "first_name": ngo['name'].split()[0],
+            "last_name": "Staff",
+            "role": "NGO_STAFF",
+            "is_active": True,
+            "created_at": ngo['created_at'],
+            "last_login": "2024-01-18T09:15:00Z",
+            "ngo_name": ngo['name']
+        })
+    
+    # Add Vendor users from existing Vendor data
+    for vendor in vendors_storage:
+        users.append({
+            "id": len(users) + 1,
+            "email": f"vendor.{vendor['name'].lower().replace(' ', '.')}@example.com",
+            "first_name": vendor['name'].split()[0],
+            "last_name": "Vendor",
+            "role": "VENDOR",
+            "is_active": True,
+            "created_at": vendor['created_at'],
+            "last_login": "2024-01-17T16:45:00Z",
+            "vendor_name": vendor['name']
+        })
+    
+    # Add Donor users
+    for donor in donors_storage:
+        users.append({
+            "id": len(users) + 1,
+            "email": donor['email'],
+            "first_name": donor['name'].split()[0],
+            "last_name": donor['name'].split()[-1] if len(donor['name'].split()) > 1 else "",
+            "role": "DONOR",
+            "is_active": True,
+            "created_at": "2024-01-01T00:00:00Z",
+            "last_login": donor['last_donation_date']
+        })
+    
+    return {
+        "value": users,
+        "Count": len(users)
+    }
+
+@app.post("/admin/users")
+async def create_user(
+    email: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    role: str = Form(...),
+    password: str = Form(...),
+    ngo_id: str = Form(None),
+    vendor_id: str = Form(None)
+):
+    """Create a new user"""
+    # In a real application, this would save to database
+    # For demo purposes, we'll return a success message
+    return {
+        "id": 999,  # Demo ID
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "role": role,
+        "is_active": True,
+        "created_at": datetime.now().isoformat() + "Z",
+        "last_login": None,
+        "ngo_name": ngo_id if role in ["NGO_ADMIN", "NGO_STAFF"] else None,
+        "vendor_name": vendor_id if role == "VENDOR" else None,
+        "message": f"User {email} created successfully"
+    }
+
+@app.put("/admin/users/{user_id}")
+async def update_user(
+    user_id: int,
+    email: str = Form(...),
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    role: str = Form(...),
+    ngo_id: str = Form(None),
+    vendor_id: str = Form(None)
+):
+    """Update an existing user"""
+    # In a real application, this would update the database
+    # For demo purposes, we'll return a success message
+    return {
+        "id": user_id,
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+        "role": role,
+        "is_active": True,
+        "created_at": datetime.now().isoformat() + "Z",
+        "last_login": None,
+        "ngo_name": ngo_id if role in ["NGO_ADMIN", "NGO_STAFF"] else None,
+        "vendor_name": vendor_id if role == "VENDOR" else None,
+        "message": f"User {email} updated successfully"
+    }
 
 @app.get("/admin/ngos/{ngo_id}/vendors")
 async def get_ngo_vendors(ngo_id: int):

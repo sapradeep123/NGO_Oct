@@ -21,6 +21,8 @@ import {
   Alert,
   Tabs,
   Tab,
+  Snackbar,
+  IconButton,
 } from '@mui/material'
 import { 
   Add, 
@@ -30,7 +32,8 @@ import {
   TrendingUp, 
   Receipt,
   Store,
-  Domain
+  Domain,
+  Close as CloseIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -52,6 +55,26 @@ const NgoDashboard: React.FC = () => {
     image_url: '',  // Added image URL field
     ngo_id: 1  // Default NGO ID for Hope Trust
   })
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
+  })
+
+  // Helper function to show notifications
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    })
+  }
+
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }))
+  }
 
   // Fetch causes
   const { data: causes = [], isLoading: causesLoading } = useQuery({
@@ -113,7 +136,7 @@ const NgoDashboard: React.FC = () => {
     },
     onError: (error) => {
       console.error('Error creating cause:', error)
-      alert('Failed to create cause. Please try again.')
+      showNotification('Failed to create cause. Please try again.', 'error')
     }
   })
 
@@ -128,11 +151,11 @@ const NgoDashboard: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['ngo-causes'] })
       setEditCauseOpen(false)
       setEditingCause(null)
-      alert('Cause updated successfully!')
+      showNotification('Cause updated successfully!', 'success')
     },
     onError: (error) => {
       console.error('Error updating cause:', error)
-      alert('Failed to update cause. Please try again.')
+      showNotification('Failed to update cause. Please try again.', 'error')
     }
   })
 
@@ -399,7 +422,7 @@ const NgoDashboard: React.FC = () => {
                 startIcon={<Add />}
                 onClick={() => {
                   // Navigate to create receipt page
-                  alert('Create receipt feature coming soon!')
+                  showNotification('Create receipt feature coming soon!', 'info')
                 }}
               >
                 Upload Receipt
@@ -425,7 +448,7 @@ const NgoDashboard: React.FC = () => {
                   const imageUrl = prompt('Enter image URL:')
                   if (imageUrl) {
                     // Add to gallery logic here
-                    alert(`Image added to gallery: ${imageUrl}`)
+                    showNotification(`Image added to gallery: ${imageUrl}`, 'success')
                   }
                 }}
               >
@@ -447,7 +470,7 @@ const NgoDashboard: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         School Building
                       </Typography>
-                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                      <Button size="small" color="error" onClick={() => showNotification('Delete image?', 'warning')}>
                         Delete
                       </Button>
                     </Box>
@@ -467,7 +490,7 @@ const NgoDashboard: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         Medical Camp
                       </Typography>
-                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                      <Button size="small" color="error" onClick={() => showNotification('Delete image?', 'warning')}>
                         Delete
                       </Button>
                     </Box>
@@ -487,7 +510,7 @@ const NgoDashboard: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         Food Distribution
                       </Typography>
-                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                      <Button size="small" color="error" onClick={() => showNotification('Delete image?', 'warning')}>
                         Delete
                       </Button>
                     </Box>
@@ -507,7 +530,7 @@ const NgoDashboard: React.FC = () => {
                       <Typography variant="body2" color="text.secondary">
                         Children Learning
                       </Typography>
-                      <Button size="small" color="error" onClick={() => alert('Delete image?')}>
+                      <Button size="small" color="error" onClick={() => showNotification('Delete image?', 'warning')}>
                         Delete
                       </Button>
                     </Box>
@@ -800,6 +823,34 @@ const NgoDashboard: React.FC = () => {
           </DialogActions>
         </Dialog>
       </Box>
+
+      {/* Professional Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{ mt: 8 }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+          action={
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={handleCloseNotification}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          }
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Container>
   )
 }

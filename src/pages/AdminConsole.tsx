@@ -27,6 +27,9 @@ import {
   ListItemText,
   ListItemAvatar,
   Divider,
+  Snackbar,
+  Alert,
+  IconButton,
 } from '@mui/material'
 import { 
   Category, 
@@ -38,6 +41,9 @@ import {
   Store,
   AccountBalance,
   Person,
+  LockReset,
+  AdminPanelSettings,
+  Close as CloseIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -45,6 +51,19 @@ import DataTable from '../components/DataTable'
 
 const AdminConsole: React.FC = () => {
   const queryClient = useQueryClient()
+
+  // Helper function to show notifications
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    })
+  }
+
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }))
+  }
   const [tabValue, setTabValue] = useState(0)
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
   const [createCauseOpen, setCreateCauseOpen] = useState(false)
@@ -86,6 +105,42 @@ const AdminConsole: React.FC = () => {
   const [selectedNgoId, setSelectedNgoId] = useState<number | null>(null)
   const [selectedDonorId, setSelectedDonorId] = useState<number | null>(null)
 
+  // Password reset state
+  const [passwordResetOpen, setPasswordResetOpen] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+
+  // Create user state
+  const [createUserOpen, setCreateUserOpen] = useState(false)
+  const [newUser, setNewUser] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    role: '',
+    password: '',
+    ngo_id: '',
+    vendor_id: ''
+  })
+
+  // Edit user state
+  const [editUserOpen, setEditUserOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<any>(null)
+  const [editUserData, setEditUserData] = useState({
+    email: '',
+    first_name: '',
+    last_name: '',
+    role: '',
+    ngo_id: '',
+    vendor_id: ''
+  })
+
+  // Notification state
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
+  })
+
   // Fetch categories
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -126,6 +181,12 @@ const AdminConsole: React.FC = () => {
   const { data: associations = [], isLoading: associationsLoading } = useQuery({
     queryKey: ['ngo-vendor-associations'],
     queryFn: () => apiClient.getNgoVendorAssociations(),
+  })
+
+  // Fetch admin users
+  const { data: adminUsers = [], isLoading: adminUsersLoading } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => apiClient.getAdminUsers(),
   })
 
   // Fetch vendor details
@@ -256,6 +317,55 @@ const AdminConsole: React.FC = () => {
     },
   })
 
+  // Password reset mutation
+  const passwordResetMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: number, newPassword: string }) => {
+      return apiClient.resetUserPassword(userId, newPassword)
+    },
+    onSuccess: () => {
+      setPasswordResetOpen(false)
+      setNewPassword('')
+      setSelectedUserId(null)
+      showNotification('Password reset successfully!', 'success')
+    },
+    onError: (error: any) => {
+      showNotification(error.response?.data?.detail || 'Failed to reset password', 'error')
+    },
+  })
+
+  // Create user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: any) => {
+      return apiClient.createUser(userData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      setCreateUserOpen(false)
+      setNewUser({ email: '', first_name: '', last_name: '', role: '', password: '', ngo_id: '', vendor_id: '' })
+      showNotification('User created successfully!', 'success')
+    },
+    onError: (error: any) => {
+      showNotification(error.response?.data?.detail || 'Failed to create user', 'error')
+    },
+  })
+
+  // Edit user mutation
+  const editUserMutation = useMutation({
+    mutationFn: async ({ userId, userData }: { userId: number, userData: any }) => {
+      return apiClient.updateUser(userId, userData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      setEditUserOpen(false)
+      setEditingUser(null)
+      setEditUserData({ email: '', first_name: '', last_name: '', role: '', ngo_id: '', vendor_id: '' })
+      showNotification('User updated successfully!', 'success')
+    },
+    onError: (error: any) => {
+      showNotification(error.response?.data?.detail || 'Failed to update user', 'error')
+    },
+  })
+
   const handleCreateCategory = () => {
     createCategoryMutation.mutate(newCategory)
   }
@@ -294,6 +404,41 @@ const AdminConsole: React.FC = () => {
   const handleViewDonorDetails = (donorId: number) => {
     setSelectedDonorId(donorId)
     setDonorDetailsOpen(true)
+  }
+
+  // Password reset handlers
+  const handlePasswordReset = (userId: number) => {
+    setSelectedUserId(userId)
+    setPasswordResetOpen(true)
+  }
+
+  const handleConfirmPasswordReset = () => {
+    if (selectedUserId && newPassword) {
+      passwordResetMutation.mutate({ userId: selectedUserId, newPassword })
+    }
+  }
+
+  const handleCreateUser = () => {
+    createUserMutation.mutate(newUser)
+  }
+
+  const handleEditUser = (user: any) => {
+    setEditingUser(user)
+    setEditUserData({
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role,
+      ngo_id: user.ngo_name || '',
+      vendor_id: user.vendor_name || ''
+    })
+    setEditUserOpen(true)
+  }
+
+  const handleUpdateUser = () => {
+    if (editingUser) {
+      editUserMutation.mutate({ userId: editingUser.id, userData: editUserData })
+    }
   }
 
   // Helper function to get available vendors for selected NGO and category
@@ -807,6 +952,7 @@ const AdminConsole: React.FC = () => {
               <Tab label="NGOs" icon={<AccountBalance />} iconPosition="start" />
               <Tab label="Vendors" icon={<Store />} iconPosition="start" />
               <Tab label="Donors" icon={<Person />} iconPosition="start" />
+              <Tab label="User Management" icon={<AdminPanelSettings />} iconPosition="start" />
               <Tab label="Categories" icon={<Category />} iconPosition="start" />
               <Tab label="NGO-Vendor Associations" icon={<Verified />} iconPosition="start" />
             </Tabs>
@@ -1026,6 +1172,82 @@ const AdminConsole: React.FC = () => {
           <TabPanel value={tabValue} index={4}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
+                User Management
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AdminPanelSettings />}
+                onClick={() => setCreateUserOpen(true)}
+                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
+              >
+                Add User
+              </Button>
+            </Box>
+            
+            {adminUsersLoading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <DataTable
+                rows={adminUsers}
+                columns={[
+                  { field: 'id', headerName: 'ID', width: 80 },
+                  { field: 'email', headerName: 'Email', width: 250 },
+                  { field: 'first_name', headerName: 'First Name', width: 150 },
+                  { field: 'last_name', headerName: 'Last Name', width: 150 },
+                  { 
+                    field: 'role', 
+                    headerName: 'Role', 
+                    width: 150,
+                    renderCell: (params: any) => (
+                      <Chip 
+                        label={params.value.replace('_', ' ')} 
+                        color={
+                          params.value === 'PLATFORM_ADMIN' ? 'error' :
+                          params.value === 'NGO_ADMIN' ? 'primary' :
+                          params.value === 'NGO_STAFF' ? 'info' :
+                          params.value === 'VENDOR' ? 'warning' :
+                          'success'
+                        }
+                        size="small"
+                      />
+                    )
+                  },
+                  { 
+                    field: 'ngo_name', 
+                    headerName: 'NGO/Vendor', 
+                    width: 150,
+                    renderCell: (params: any) => params.value || '-'
+                  },
+                  { 
+                    field: 'last_login', 
+                    headerName: 'Last Login', 
+                    width: 150,
+                    renderCell: (params: any) => params.value ? new Date(params.value).toLocaleDateString() : 'Never'
+                  }
+                ]}
+                actions={[
+                  {
+                    icon: <AdminPanelSettings />,
+                    label: 'Edit User',
+                    onClick: (params: any) => handleEditUser(params.row)
+                  },
+                  {
+                    icon: <LockReset />,
+                    label: 'Reset Password',
+                    onClick: (params: any) => handlePasswordReset(params.row.id)
+                  }
+                ]}
+                onRowClick={() => {}}
+                getRowId={(row) => row.id.toString()}
+              />
+            )}
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={5}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
                 Cause Categories
               </Typography>
               <Button
@@ -1056,7 +1278,7 @@ const AdminConsole: React.FC = () => {
             </Grid>
           </TabPanel>
 
-          <TabPanel value={tabValue} index={5}>
+          <TabPanel value={tabValue} index={6}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
                 NGO-Vendor Associations
@@ -1945,7 +2167,274 @@ const AdminConsole: React.FC = () => {
             <Button onClick={() => setDonorDetailsOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
+
+        {/* Create User Dialog */}
+        <Dialog open={createUserOpen} onClose={() => setCreateUserOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Create New User</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  value={newUser.first_name}
+                  onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  value={newUser.last_name}
+                  onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>Role</InputLabel>
+                  <Select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                    label="Role"
+                  >
+                    <MenuItem value="PLATFORM_ADMIN">Platform Admin</MenuItem>
+                    <MenuItem value="NGO_ADMIN">NGO Admin</MenuItem>
+                    <MenuItem value="NGO_STAFF">NGO Staff</MenuItem>
+                    <MenuItem value="VENDOR">Vendor</MenuItem>
+                    <MenuItem value="DONOR">Donor</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              {newUser.role === 'NGO_ADMIN' || newUser.role === 'NGO_STAFF' ? (
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>NGO</InputLabel>
+                    <Select
+                      value={newUser.ngo_id}
+                      onChange={(e) => setNewUser({ ...newUser, ngo_id: e.target.value })}
+                      label="NGO"
+                    >
+                      {ngos.map((ngo) => (
+                        <MenuItem key={ngo.id} value={ngo.id}>
+                          {ngo.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              ) : null}
+              {newUser.role === 'VENDOR' ? (
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Vendor</InputLabel>
+                    <Select
+                      value={newUser.vendor_id}
+                      onChange={(e) => setNewUser({ ...newUser, vendor_id: e.target.value })}
+                      label="Vendor"
+                    >
+                      {vendors.map((vendor) => (
+                        <MenuItem key={vendor.id} value={vendor.id}>
+                          {vendor.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              ) : null}
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCreateUserOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleCreateUser}
+              variant="contained"
+              disabled={createUserMutation.isPending || !newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name || !newUser.role}
+            >
+              {createUserMutation.isPending ? <CircularProgress size={20} /> : 'Create User'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit User Dialog */}
+        <Dialog open={editUserOpen} onClose={() => setEditUserOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Edit User</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  value={editUserData.email}
+                  onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  value={editUserData.first_name}
+                  onChange={(e) => setEditUserData({ ...editUserData, first_name: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  value={editUserData.last_name}
+                  onChange={(e) => setEditUserData({ ...editUserData, last_name: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth required>
+                  <InputLabel>Role</InputLabel>
+                  <Select
+                    value={editUserData.role}
+                    onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
+                    label="Role"
+                  >
+                    <MenuItem value="PLATFORM_ADMIN">Platform Admin</MenuItem>
+                    <MenuItem value="NGO_ADMIN">NGO Admin</MenuItem>
+                    <MenuItem value="NGO_STAFF">NGO Staff</MenuItem>
+                    <MenuItem value="VENDOR">Vendor</MenuItem>
+                    <MenuItem value="DONOR">Donor</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              {editUserData.role === 'NGO_ADMIN' || editUserData.role === 'NGO_STAFF' ? (
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>NGO</InputLabel>
+                    <Select
+                      value={editUserData.ngo_id}
+                      onChange={(e) => setEditUserData({ ...editUserData, ngo_id: e.target.value })}
+                      label="NGO"
+                    >
+                      {ngos.map((ngo) => (
+                        <MenuItem key={ngo.id} value={ngo.name}>
+                          {ngo.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              ) : null}
+              {editUserData.role === 'VENDOR' ? (
+                <Grid item xs={12}>
+                  <FormControl fullWidth required>
+                    <InputLabel>Vendor</InputLabel>
+                    <Select
+                      value={editUserData.vendor_id}
+                      onChange={(e) => setEditUserData({ ...editUserData, vendor_id: e.target.value })}
+                      label="Vendor"
+                    >
+                      {vendors.map((vendor) => (
+                        <MenuItem key={vendor.id} value={vendor.name}>
+                          {vendor.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              ) : null}
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditUserOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleUpdateUser}
+              variant="contained"
+              disabled={editUserMutation.isPending || !editUserData.email || !editUserData.first_name || !editUserData.last_name || !editUserData.role}
+            >
+              {editUserMutation.isPending ? <CircularProgress size={20} /> : 'Update User'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Password Reset Dialog */}
+        <Dialog open={passwordResetOpen} onClose={() => setPasswordResetOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Reset User Password</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Enter a new password for the selected user. This will immediately change their login credentials.
+            </Typography>
+            <TextField
+              fullWidth
+              label="New Password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              sx={{ mb: 2 }}
+              helperText="Password should be at least 8 characters long"
+            />
+            <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>
+              ⚠️ The user will need to use this new password for their next login.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPasswordResetOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleConfirmPasswordReset}
+              variant="contained"
+              color="warning"
+              disabled={passwordResetMutation.isPending || !newPassword || newPassword.length < 8}
+            >
+              {passwordResetMutation.isPending ? <CircularProgress size={20} /> : 'Reset Password'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
+
+      {/* Professional Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{ mt: 8 }}
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+          action={
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={handleCloseNotification}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          }
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
