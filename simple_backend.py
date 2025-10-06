@@ -3,6 +3,10 @@ from fastapi import FastAPI, Form, Request, HTTPException, Depends, File, Upload
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from datetime import datetime
+import razorpay
+import json
+import hashlib
+import hmac
 
 # Helper function to get current user from request
 async def get_current_user_from_request(request: Request):
@@ -94,16 +98,8 @@ async def get_current_user_from_request(request: Request):
                     "created_at": "2024-01-01T00:00:00Z"
                 }
     
-    # Default to admin if token not recognized
-    return {
-        "id": 1,
-        "email": "admin@example.com",
-        "first_name": "Admin",
-        "last_name": "User",
-        "role": "PLATFORM_ADMIN",
-        "is_active": True,
-        "created_at": "2024-01-01T00:00:00Z"
-    }
+    # Return None if token not recognized - this will cause authentication to fail
+    return None
 
 categories_storage = [
     {
@@ -223,8 +219,8 @@ ngos_storage = [
 donors_storage = [
     {
         "id": 1,
-        "name": "John Smith",
-        "email": "john.smith@email.com",
+        "name": "Arya Sharma",
+        "email": "donor.arya@example.com",
         "phone": "+91-9876543210",
         "address": "123 Main Street, Mumbai, Maharashtra 400001",
         "total_donations": 50000,
@@ -361,7 +357,7 @@ causes_storage = [
         "ngo_ids": [1],  # Hope Trust
         "category_name": "Food & Nutrition",
         "ngo_names": ["Hope Trust"],
-        "image_url": "https://picsum.photos/400/300?random=101",
+        "image_url": "https://picsum.photos/400/300?random=1",
         "created_at": "2024-01-05T00:00:00Z",
         "donation_count": 45
     },
@@ -376,7 +372,7 @@ causes_storage = [
         "ngo_ids": [2],  # Care Works
         "category_name": "Education",
         "ngo_names": ["Care Works"],
-        "image_url": "https://picsum.photos/400/300?random=102",
+        "image_url": "https://picsum.photos/400/300?random=2",
         "created_at": "2024-01-08T00:00:00Z",
         "donation_count": 32
     },
@@ -391,7 +387,7 @@ causes_storage = [
         "ngo_ids": [3],  # Health First Foundation
         "category_name": "Healthcare",
         "ngo_names": ["Health First Foundation"],
-        "image_url": "https://picsum.photos/400/300?random=103",
+        "image_url": "https://picsum.photos/400/300?random=3",
         "created_at": "2024-01-10T00:00:00Z",
         "donation_count": 28
     },
@@ -406,7 +402,7 @@ causes_storage = [
         "ngo_ids": [1],  # Hope Trust
         "category_name": "Emergency Relief",
         "ngo_names": ["Hope Trust"],
-        "image_url": "https://picsum.photos/400/300?random=104",
+        "image_url": "https://picsum.photos/400/300?random=4",
         "created_at": "2024-01-12T00:00:00Z",
         "donation_count": 18
     },
@@ -421,7 +417,7 @@ causes_storage = [
         "ngo_ids": [2],  # Care Works
         "category_name": "Women & Children",
         "ngo_names": ["Care Works"],
-        "image_url": "https://picsum.photos/400/300?random=105",
+        "image_url": "https://picsum.photos/400/300?random=5",
         "created_at": datetime.now().isoformat() + "Z",
         "donation_count": 22
     }
@@ -456,6 +452,106 @@ pending_causes_storage = [
 
 # Domain storage for custom domains
 domains_storage = []
+
+# Order management system
+orders_storage = [
+    {
+        "id": 1,
+        "order_number": "ORD-001",
+        "cause_id": 1,
+        "cause_title": "Emergency Food Relief",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "vendor_id": 1,
+        "vendor_name": "Alpha Supplies",
+        "category_id": 1,
+        "category_name": "Food & Nutrition",
+        "order_amount": 15000,
+        "order_details": "500 meal packets, 200 water bottles, 100 blankets",
+        "delivery_address": "123 Hope Street, Mumbai, Maharashtra 400001",
+        "contact_person": "John Doe",
+        "contact_phone": "+91-9876543210",
+        "status": "ORDER_RECEIVED",
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z",
+        "delivery_date": None,
+        "delivered_at": None,
+        "ngo_confirmed_at": None,
+        "notes": "Urgent delivery required"
+    },
+    {
+        "id": 2,
+        "order_number": "ORD-002",
+        "cause_id": 2,
+        "cause_title": "School Supplies Drive",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "vendor_id": 2,
+        "vendor_name": "Beta Medical",
+        "category_id": 2,
+        "category_name": "Education",
+        "order_amount": 25000,
+        "order_details": "100 textbooks, 50 notebooks, 200 pens, 50 pencils",
+        "delivery_address": "456 Education Center, Mumbai, Maharashtra 400002",
+        "contact_person": "Jane Smith",
+        "contact_phone": "+91-9876543211",
+        "status": "ORDER_IN_PROCESS",
+        "created_at": "2024-01-12T14:20:00Z",
+        "updated_at": "2024-01-16T09:15:00Z",
+        "delivery_date": None,
+        "delivered_at": None,
+        "ngo_confirmed_at": None,
+        "notes": "Standard delivery"
+    },
+    {
+        "id": 3,
+        "order_number": "ORD-003",
+        "cause_id": 3,
+        "cause_title": "Medical Equipment Fund",
+        "ngo_id": 2,
+        "ngo_name": "Care Works",
+        "vendor_id": 2,
+        "vendor_name": "Beta Medical",
+        "category_id": 3,
+        "category_name": "Healthcare",
+        "order_amount": 35000,
+        "order_details": "5 oxygen concentrators, 10 blood pressure monitors, 50 first aid kits",
+        "delivery_address": "789 Medical Center, Delhi, Delhi 110001",
+        "contact_person": "Dr. Rajesh Kumar",
+        "contact_phone": "+91-9876543212",
+        "status": "ORDER_IN_TRANSIT",
+        "created_at": "2024-01-10T08:45:00Z",
+        "updated_at": "2024-01-17T11:30:00Z",
+        "delivery_date": "2024-01-20T00:00:00Z",
+        "delivered_at": None,
+        "ngo_confirmed_at": None,
+        "notes": "Fragile medical equipment - handle with care"
+    },
+    {
+        "id": 4,
+        "order_number": "ORD-004",
+        "cause_id": 4,
+        "cause_title": "Women Empowerment Program",
+        "ngo_id": 3,
+        "ngo_name": "Health First Foundation",
+        "vendor_id": 3,
+        "vendor_name": "Gamma Educational",
+        "category_id": 5,
+        "category_name": "Women & Children",
+        "order_amount": 20000,
+        "order_details": "50 sewing machines, 100 fabric rolls, 200 thread spools",
+        "delivery_address": "321 Women Center, Bangalore, Karnataka 560001",
+        "contact_person": "Priya Sharma",
+        "contact_phone": "+91-9876543213",
+        "status": "ORDER_DELIVERED",
+        "created_at": "2024-01-08T12:00:00Z",
+        "updated_at": "2024-01-18T16:45:00Z",
+        "delivery_date": "2024-01-18T00:00:00Z",
+        "delivered_at": "2024-01-18T16:45:00Z",
+        "ngo_confirmed_at": None,
+        "notes": "Waiting for NGO confirmation"
+    }
+]
 
 # NGO-Vendor associations (many-to-many with categories)
 ngo_vendor_associations = [
@@ -582,6 +678,11 @@ donations_storage = []
 
 app = FastAPI(title="NGO Donations Platform", version="1.0.0")
 
+# Razorpay Configuration (Test Credentials)
+RAZORPAY_KEY_ID = "rzp_test_1DP5mmOlF5G5ag"  # Replace with your test key
+RAZORPAY_KEY_SECRET = "thisisjustademokey"  # Replace with your test secret
+razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -673,6 +774,9 @@ async def get_tenant_contact_page(slug: str):
 async def update_ngo_about_page(ngo_id: int, request: Request, about_data: dict):
     """Update NGO About Us page content"""
     current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
     
     # Check if user has permission to update this NGO
     if current_user["role"] not in ["PLATFORM_ADMIN", "NGO_ADMIN"]:
@@ -816,6 +920,9 @@ async def get_admin_ngos(request: Request):
     """Get NGOs based on user role"""
     current_user = await get_current_user_from_request(request)
     
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
     if current_user["role"] == "PLATFORM_ADMIN":
         # Platform admin sees all NGOs
         return {
@@ -846,6 +953,9 @@ async def get_admin_ngos(request: Request):
 async def get_admin_vendors(request: Request):
     """Get vendors based on user role"""
     current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
     
     if current_user["role"] == "PLATFORM_ADMIN":
         # Platform admin sees all vendors
@@ -898,11 +1008,25 @@ async def get_admin_donors(request: Request):
     """Get donors based on user role"""
     current_user = await get_current_user_from_request(request)
     
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    # Helper function to format donor data with first_name and last_name
+    def format_donor_data(donor):
+        name_parts = donor["name"].split()
+        return {
+            **donor,
+            "first_name": name_parts[0] if name_parts else "",
+            "last_name": " ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+            "total_causes_supported": len(donor.get("donation_history", [])),
+        }
+    
     if current_user["role"] == "PLATFORM_ADMIN":
         # Platform admin sees all donors
+        formatted_donors = [format_donor_data(donor) for donor in donors_storage]
         return {
-            "value": donors_storage,
-            "Count": len(donors_storage)
+            "value": formatted_donors,
+            "Count": len(formatted_donors)
         }
     elif current_user["role"] in ["NGO_ADMIN", "NGO_STAFF"]:
         # NGO users see only donors who donated to their NGO
@@ -913,7 +1037,7 @@ async def get_admin_donors(request: Request):
             for donor in donors_storage:
                 # Check if donor has donation history (simplified for demo)
                 if donor.get("last_donation_date"):  # If they have donation history
-                    ngo_donors.append(donor)
+                    ngo_donors.append(format_donor_data(donor))
             return {
                 "value": ngo_donors,
                 "Count": len(ngo_donors)
@@ -1292,7 +1416,9 @@ async def get_current_user(request: Request):
                     "last_name": "Vendor",
                     "role": "VENDOR",
                     "is_active": True,
-                    "created_at": vendor['created_at']
+                    "created_at": vendor['created_at'],
+                    "vendor_id": vendor['id'],
+                    "vendor_name": vendor['name']
                 }
         
         # Check Donor users
@@ -1308,16 +1434,8 @@ async def get_current_user(request: Request):
                     "created_at": "2024-01-01T00:00:00Z"
                 }
     
-    # Default to admin if token not recognized
-    return {
-        "id": 1,
-        "email": "admin@example.com",
-        "first_name": "Admin",
-        "last_name": "User",
-        "role": "PLATFORM_ADMIN",
-        "is_active": True,
-        "created_at": "2024-01-01T00:00:00Z"
-    }
+    # Return None if token not recognized - this will cause authentication to fail
+    return None
 
 @app.get("/public/categories")
 async def get_categories():
@@ -1339,6 +1457,9 @@ async def get_ngos():
 async def get_admin_causes(request: Request):
     """Get causes based on user role"""
     current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
     
     if current_user["role"] == "PLATFORM_ADMIN":
         # Platform admin sees all causes
@@ -1382,6 +1503,161 @@ async def get_causes():
     return {
         "value": causes_storage,
         "Count": len(causes_storage)
+    }
+
+# Donation Management Endpoints
+@app.post("/donations/init")
+async def init_donation(
+    cause_id: int = Form(...),
+    amount: int = Form(...),
+    donor_name: str = Form(...),
+    donor_email: str = Form(...),
+    donor_phone: str = Form(None)
+):
+    """Initialize a donation and create Razorpay order"""
+    try:
+        # Find the cause
+        cause = next((c for c in causes_storage if c["id"] == cause_id), None)
+        if not cause:
+            raise HTTPException(status_code=404, detail="Cause not found")
+        
+        # Create donation record
+        donation_id = len(donations_storage) + 1
+        donation = {
+            "id": donation_id,
+            "cause_id": cause_id,
+            "cause_title": cause["title"],
+            "ngo_id": cause["ngo_ids"][0] if cause["ngo_ids"] else None,
+            "ngo_name": cause["ngo_names"][0] if cause["ngo_names"] else "Unknown NGO",
+            "amount": amount,
+            "donor_name": donor_name,
+            "donor_email": donor_email,
+            "donor_phone": donor_phone,
+            "status": "PENDING",
+            "created_at": datetime.now().isoformat() + "Z",
+            "razorpay_order_id": None,
+            "razorpay_payment_id": None,
+            "razorpay_signature": None
+        }
+        
+        # Create Razorpay order
+        order_data = {
+            "amount": amount * 100,  # Convert to paise
+            "currency": "INR",
+            "receipt": f"donation_{donation_id}",
+            "notes": {
+                "cause_id": str(cause_id),
+                "cause_title": cause["title"],
+                "donor_name": donor_name,
+                "donor_email": donor_email
+            }
+        }
+        
+        razorpay_order = razorpay_client.order.create(data=order_data)
+        
+        # Update donation with order ID
+        donation["razorpay_order_id"] = razorpay_order["id"]
+        donations_storage.append(donation)
+        
+        return {
+            "donation_id": donation_id,
+            "order_id": razorpay_order["id"],
+            "amount": amount,
+            "currency": "INR",
+            "key": RAZORPAY_KEY_ID,
+            "name": "NGO Platform",
+            "description": f"Donation for {cause['title']}",
+            "prefill": {
+                "name": donor_name,
+                "email": donor_email,
+                "contact": donor_phone
+            },
+            "notes": {
+                "cause_id": str(cause_id),
+                "donation_id": str(donation_id)
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize donation: {str(e)}")
+
+@app.post("/donations/verify")
+async def verify_donation(
+    razorpay_order_id: str = Form(...),
+    razorpay_payment_id: str = Form(...),
+    razorpay_signature: str = Form(...)
+):
+    """Verify Razorpay payment and update donation status"""
+    try:
+        # Find donation by order ID
+        donation = next((d for d in donations_storage if d["razorpay_order_id"] == razorpay_order_id), None)
+        if not donation:
+            raise HTTPException(status_code=404, detail="Donation not found")
+        
+        # Verify signature
+        body = f"{razorpay_order_id}|{razorpay_payment_id}"
+        expected_signature = hmac.new(
+            RAZORPAY_KEY_SECRET.encode(),
+            body.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if expected_signature != razorpay_signature:
+            raise HTTPException(status_code=400, detail="Invalid signature")
+        
+        # Update donation
+        donation["razorpay_payment_id"] = razorpay_payment_id
+        donation["razorpay_signature"] = razorpay_signature
+        donation["status"] = "COMPLETED"
+        donation["completed_at"] = datetime.now().isoformat() + "Z"
+        
+        # Update cause amount
+        cause = next((c for c in causes_storage if c["id"] == donation["cause_id"]), None)
+        if cause:
+            cause["current_amount"] += donation["amount"]
+            cause["donation_count"] += 1
+        
+        return {
+            "success": True,
+            "donation_id": donation["id"],
+            "payment_id": razorpay_payment_id,
+            "message": "Payment verified successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
+
+@app.get("/donations/{donation_id}")
+async def get_donation(donation_id: int):
+    """Get donation details"""
+    donation = next((d for d in donations_storage if d["id"] == donation_id), None)
+    if not donation:
+        raise HTTPException(status_code=404, detail="Donation not found")
+    
+    return donation
+
+@app.get("/donations/{donation_id}/receipt")
+async def get_donation_receipt(donation_id: int):
+    """Get donation receipt"""
+    donation = next((d for d in donations_storage if d["id"] == donation_id), None)
+    if not donation:
+        raise HTTPException(status_code=404, detail="Donation not found")
+    
+    if donation["status"] != "COMPLETED":
+        raise HTTPException(status_code=400, detail="Donation not completed")
+    
+    return {
+        "receipt_id": f"RCP-{donation_id:06d}",
+        "donation_id": donation_id,
+        "cause_title": donation["cause_title"],
+        "ngo_name": donation["ngo_name"],
+        "amount": donation["amount"],
+        "donor_name": donation["donor_name"],
+        "donor_email": donation["donor_email"],
+        "payment_id": donation["razorpay_payment_id"],
+        "date": donation["completed_at"],
+        "tax_exempt": True,
+        "pan_number": "NGO-PLATFORM-001"
     }
 
 # NGO-Vendor Association Management Endpoints
@@ -2106,6 +2382,342 @@ async def domain_health_check(host: str):
         "ngo_id": domain["tenant_id"],
         "is_active": domain["status"] == "LIVE"
     }
+
+# Order Management Endpoints
+@app.get("/vendor/orders")
+async def get_vendor_orders(request: Request):
+    """Get orders for the current vendor"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] != "VENDOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    vendor_id = current_user.get("vendor_id")
+    if not vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID not found")
+    
+    # Filter orders for this vendor
+    vendor_orders = [order for order in orders_storage if order["vendor_id"] == vendor_id]
+    
+    return {
+        "value": vendor_orders,
+        "Count": len(vendor_orders)
+    }
+
+@app.get("/vendor/orders/{order_id}")
+async def get_order_details(order_id: int, request: Request):
+    """Get detailed order information"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] != "VENDOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    vendor_id = current_user.get("vendor_id")
+    if not vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID not found")
+    
+    # Find the order
+    order = next((o for o in orders_storage if o["id"] == order_id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Check if vendor has access to this order
+    if order["vendor_id"] != vendor_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return order
+
+@app.put("/vendor/orders/{order_id}/status")
+async def update_order_status(order_id: int, request: Request, status_data: dict):
+    """Update order status"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] != "VENDOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    vendor_id = current_user.get("vendor_id")
+    if not vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID not found")
+    
+    # Find the order
+    order = next((o for o in orders_storage if o["id"] == order_id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Check if vendor has access to this order
+    if order["vendor_id"] != vendor_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    new_status = status_data.get("status")
+    delivery_date = status_data.get("delivery_date")
+    
+    # Validate status transition
+    valid_transitions = {
+        "ORDER_RECEIVED": ["ORDER_IN_PROCESS"],
+        "ORDER_IN_PROCESS": ["ORDER_IN_TRANSIT"],
+        "ORDER_IN_TRANSIT": ["ORDER_DELIVERED"],
+        "ORDER_DELIVERED": []  # Final state
+    }
+    
+    if new_status not in valid_transitions.get(order["status"], []):
+        raise HTTPException(status_code=400, detail=f"Invalid status transition from {order['status']} to {new_status}")
+    
+    # Update order
+    order["status"] = new_status
+    order["updated_at"] = datetime.now().isoformat() + "Z"
+    
+    if new_status == "ORDER_IN_TRANSIT" and delivery_date:
+        order["delivery_date"] = delivery_date
+    elif new_status == "ORDER_DELIVERED":
+        order["delivered_at"] = datetime.now().isoformat() + "Z"
+    
+    return {
+        "id": order_id,
+        "status": new_status,
+        "updated_at": order["updated_at"],
+        "message": f"Order status updated to {new_status}"
+    }
+
+@app.get("/ngo/orders")
+async def get_ngo_orders(request: Request):
+    """Get orders for the current NGO"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] not in ["NGO_ADMIN", "NGO_STAFF"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    ngo_id = current_user.get("ngo_id")
+    if not ngo_id:
+        raise HTTPException(status_code=400, detail="NGO ID not found")
+    
+    # Filter orders for this NGO
+    ngo_orders = [order for order in orders_storage if order["ngo_id"] == ngo_id]
+    
+    return {
+        "value": ngo_orders,
+        "Count": len(ngo_orders)
+    }
+
+@app.put("/ngo/orders/{order_id}/confirm")
+async def confirm_order_delivery(order_id: int, request: Request):
+    """Confirm order delivery by NGO"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] not in ["NGO_ADMIN", "NGO_STAFF"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    ngo_id = current_user.get("ngo_id")
+    if not ngo_id:
+        raise HTTPException(status_code=400, detail="NGO ID not found")
+    
+    # Find the order
+    order = next((o for o in orders_storage if o["id"] == order_id), None)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    # Check if NGO has access to this order
+    if order["ngo_id"] != ngo_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Check if order is delivered
+    if order["status"] != "ORDER_DELIVERED":
+        raise HTTPException(status_code=400, detail="Order must be delivered before confirmation")
+    
+    # Update order
+    order["ngo_confirmed_at"] = datetime.now().isoformat() + "Z"
+    order["updated_at"] = datetime.now().isoformat() + "Z"
+    
+    return {
+        "id": order_id,
+        "ngo_confirmed_at": order["ngo_confirmed_at"],
+        "message": "Order delivery confirmed by NGO"
+    }
+
+# Ticket Management System
+tickets_storage = [
+    {
+        "id": 1,
+        "donor_email": "donor.arya@example.com",
+        "cause_id": 1,
+        "cause_title": "Emergency Food Relief",
+        "ngo_name": "Hope Trust",
+        "subject": "Delivery Status Inquiry",
+        "description": "I donated to Emergency Food Relief but haven't received any updates on delivery status.",
+        "status": "OPEN",
+        "priority": "MEDIUM",
+        "created_at": "2024-01-20T10:30:00Z",
+        "updated_at": "2024-01-20T10:30:00Z",
+        "admin_response": None,
+        "resolved_at": None
+    },
+    {
+        "id": 2,
+        "donor_email": "donor.arya@example.com",
+        "cause_id": 2,
+        "cause_title": "School Supplies Drive",
+        "ngo_name": "Hope Trust",
+        "subject": "Tax Receipt Request",
+        "description": "I need a proper tax receipt for my donation to School Supplies Drive.",
+        "status": "RESOLVED",
+        "priority": "LOW",
+        "created_at": "2024-01-18T14:20:00Z",
+        "updated_at": "2024-01-19T09:15:00Z",
+        "admin_response": "Tax receipt has been generated and sent to your email.",
+        "resolved_at": "2024-01-19T09:15:00Z"
+    }
+]
+
+# Donor-specific endpoints
+@app.get("/donor/donations")
+async def get_donor_donations(request: Request):
+    """Get donations for the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get donor's donation history
+    donor_email = current_user["email"]
+    donor = next((d for d in donors_storage if d["email"] == donor_email), None)
+    if not donor: raise HTTPException(status_code=404, detail="Donor not found")
+    
+    return {"value": donor.get("donation_history", []), "Count": len(donor.get("donation_history", []))}
+
+@app.get("/donor/causes/{cause_id}/status")
+async def get_cause_delivery_status(cause_id: int, request: Request):
+    """Get delivery status for a specific cause"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find orders related to this cause
+    cause_orders = [order for order in orders_storage if order["cause_id"] == cause_id]
+    
+    if not cause_orders:
+        return {"status": "NO_ORDERS", "message": "No orders found for this cause"}
+    
+    # Get the latest order status
+    latest_order = max(cause_orders, key=lambda x: x["updated_at"])
+    
+    return {
+        "cause_id": cause_id,
+        "cause_title": latest_order["cause_title"],
+        "ngo_name": latest_order["ngo_name"],
+        "order_status": latest_order["status"],
+        "delivery_date": latest_order.get("delivery_date"),
+        "delivered_at": latest_order.get("delivered_at"),
+        "ngo_confirmed_at": latest_order.get("ngo_confirmed_at"),
+        "last_updated": latest_order["updated_at"]
+    }
+
+@app.get("/donor/tax-documents")
+async def get_donor_tax_documents(request: Request):
+    """Get tax documents for the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get donor's donation history for tax documents
+    donor_email = current_user["email"]
+    donor = next((d for d in donors_storage if d["email"] == donor_email), None)
+    if not donor: raise HTTPException(status_code=404, detail="Donor not found")
+    
+    # Generate tax documents based on donation history
+    tax_documents = []
+    for donation in donor.get("donation_history", []):
+        tax_documents.append({
+            "id": donation["id"],
+            "cause_title": donation["cause_title"],
+            "ngo_name": donation["ngo_name"],
+            "amount": donation["amount"],
+            "date": donation["date"],
+            "receipt_url": f"/receipts/{donation['id']}.pdf",
+            "tax_exempt": True,
+            "pan_number": donor.get("pan_number", ""),
+            "donor_name": donor["name"]
+        })
+    
+    return {"value": tax_documents, "Count": len(tax_documents)}
+
+@app.get("/donor/tickets")
+async def get_donor_tickets(request: Request):
+    """Get tickets for the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    donor_email = current_user["email"]
+    donor_tickets = [ticket for ticket in tickets_storage if ticket["donor_email"] == donor_email]
+    
+    return {"value": donor_tickets, "Count": len(donor_tickets)}
+
+@app.post("/donor/tickets")
+async def create_donor_ticket(request: Request, ticket_data: dict):
+    """Create a new ticket for the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    new_ticket = {
+        "id": len(tickets_storage) + 1,
+        "donor_email": current_user["email"],
+        "cause_id": ticket_data.get("cause_id"),
+        "cause_title": ticket_data.get("cause_title"),
+        "ngo_name": ticket_data.get("ngo_name"),
+        "subject": ticket_data.get("subject"),
+        "description": ticket_data.get("description"),
+        "status": "OPEN",
+        "priority": ticket_data.get("priority", "MEDIUM"),
+        "created_at": datetime.now().isoformat() + "Z",
+        "updated_at": datetime.now().isoformat() + "Z",
+        "admin_response": None,
+        "resolved_at": None
+    }
+    
+    tickets_storage.append(new_ticket)
+    return {"id": new_ticket["id"], "message": "Ticket created successfully"}
+
+@app.get("/admin/tickets")
+async def get_admin_tickets(request: Request):
+    """Get all tickets for admin management"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {"value": tickets_storage, "Count": len(tickets_storage)}
+
+@app.put("/admin/tickets/{ticket_id}")
+async def update_ticket(ticket_id: int, request: Request, update_data: dict):
+    """Update ticket status and response"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    ticket = next((t for t in tickets_storage if t["id"] == ticket_id), None)
+    if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    ticket["status"] = update_data.get("status", ticket["status"])
+    ticket["admin_response"] = update_data.get("admin_response", ticket["admin_response"])
+    ticket["updated_at"] = datetime.now().isoformat() + "Z"
+    
+    if ticket["status"] == "RESOLVED":
+        ticket["resolved_at"] = datetime.now().isoformat() + "Z"
+    
+    return {"id": ticket_id, "message": "Ticket updated successfully"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -155,17 +155,15 @@ const NgoDashboard: React.FC = () => {
   })
 
   // Fetch associated vendors (filtered by user's NGO)
-  const { data: vendors = [] } = useQuery({
+  const { data: vendors = [], isLoading: vendorsLoading } = useQuery({
     queryKey: ['ngo-vendors'],
     queryFn: () => apiClient.getAdminVendors(),
     select: (data: any) => {
-      // For NGO users, filter vendors by their NGO associations
-      if (user?.role === 'NGO_ADMIN' || user?.role === 'NGO_STAFF') {
-        const userNgoId = user.ngo_id
-        return data.value?.filter((vendor: any) => 
-          vendor.ngo_associations?.some((assoc: any) => assoc.ngo_id === userNgoId)
-        ) || []
-      }
+      // Debug logging
+      console.log('Vendors data from backend:', data)
+      console.log('Current user:', user)
+      // The backend already filters vendors by user's NGO associations
+      // No additional filtering needed on the frontend
       return data.value || []
     }
   })
@@ -765,7 +763,22 @@ const NgoDashboard: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {vendors.map((vendor: any) => (
+                  {vendorsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <CircularProgress size={24} />
+                      </TableCell>
+                    </TableRow>
+                  ) : vendors.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No associated vendors found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    vendors.map((vendor: any) => (
                     <TableRow key={vendor.id}>
                       <TableCell>{vendor.name}</TableCell>
                       <TableCell>{vendor.category || 'General'}</TableCell>
@@ -787,7 +800,8 @@ const NgoDashboard: React.FC = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>

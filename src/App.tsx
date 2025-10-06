@@ -40,6 +40,7 @@ const DefaultRoute: React.FC = () => {
   }
   
   // Redirect authenticated users to their appropriate dashboard
+  // Donors can access the marketplace and use Dashboard button to go to their dashboard
   if (user?.role === 'PLATFORM_ADMIN') {
     console.log('Redirecting to admin-console')
     return <Navigate to="/admin-console" replace />
@@ -49,11 +50,9 @@ const DefaultRoute: React.FC = () => {
   } else if (user?.role === 'VENDOR') {
     console.log('Redirecting to vendor-portal')
     return <Navigate to="/vendor-portal" replace />
-  } else if (user?.role === 'DONOR') {
-    console.log('Redirecting to donor-dashboard')
-    return <Navigate to="/donor-dashboard" replace />
   } else {
-    console.log('No matching role, showing marketplace')
+    // For donors and other users, show the marketplace
+    console.log('Showing marketplace for user role:', user?.role)
     return <MarketplaceHome />
   }
 }

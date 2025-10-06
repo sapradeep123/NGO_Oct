@@ -12,6 +12,8 @@ export interface User {
   role?: string
   ngo_id?: number
   ngo_name?: string
+  vendor_id?: number
+  vendor_name?: string
 }
 
 export interface LoginRequest {
@@ -247,16 +249,7 @@ class ApiClient {
     return response.data
   }
 
-  // Donation endpoints
-  async initDonation(donation: DonationInitRequest): Promise<DonationInitResponse> {
-    const response: AxiosResponse<DonationInitResponse> = await this.client.post('/donations/init', donation)
-    return response.data
-  }
-
-  async getDonationReceipt(donationId: number): Promise<any> {
-    const response = await this.client.get(`/donations/${donationId}/receipt`)
-    return response.data
-  }
+  // Donation endpoints (removed duplicates - using newer implementations below)
 
   // Vendor endpoints
 
@@ -583,6 +576,104 @@ class ApiClient {
   // Runtime config
   async getRuntimeConfig(): Promise<{ apiBaseUrl: string }> {
     const response = await this.client.get('/.well-known/runtime-config')
+    return response.data
+  }
+
+  // Order Management API methods
+  async getVendorOrders(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/vendor/orders')
+    return response.data.value || []
+  }
+
+  async getOrderDetails(orderId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.get(`/vendor/orders/${orderId}`)
+    return response.data
+  }
+
+  async updateOrderStatus(orderId: number, statusData: { status: string; delivery_date?: string }): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.put(`/vendor/orders/${orderId}/status`, statusData)
+    return response.data
+  }
+
+  async getNgoOrders(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/ngo/orders')
+    return response.data.value || []
+  }
+
+  async confirmOrderDelivery(orderId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.put(`/ngo/orders/${orderId}/confirm`)
+    return response.data
+  }
+
+  // Donor-specific API methods
+  async getDonorDonations(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/donor/donations')
+    return response.data.value || []
+  }
+
+  async getCauseDeliveryStatus(causeId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.get(`/donor/causes/${causeId}/status`)
+    return response.data
+  }
+
+  async getDonorTaxDocuments(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/donor/tax-documents')
+    return response.data.value || []
+  }
+
+  async getDonorTickets(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/donor/tickets')
+    return response.data.value || []
+  }
+
+  async createDonorTicket(ticketData: { cause_id: number; cause_title: string; ngo_name: string; subject: string; description: string; priority?: string }): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.post('/donor/tickets', ticketData)
+    return response.data
+  }
+
+  // Admin ticket management
+  async getAdminTickets(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/tickets')
+    return response.data.value || []
+  }
+
+  async updateTicket(ticketId: number, updateData: { status?: string; admin_response?: string }): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.put(`/admin/tickets/${ticketId}`, updateData)
+    return response.data
+  }
+
+  // Donation API methods
+  async initDonation(donationData: { cause_id: number; amount: number; donor_name: string; donor_email: string; donor_phone?: string }): Promise<any> {
+    const formData = new FormData()
+    formData.append('cause_id', donationData.cause_id.toString())
+    formData.append('amount', donationData.amount.toString())
+    formData.append('donor_name', donationData.donor_name)
+    formData.append('donor_email', donationData.donor_email)
+    if (donationData.donor_phone) {
+      formData.append('donor_phone', donationData.donor_phone)
+    }
+    
+    const response: AxiosResponse<any> = await this.client.post('/donations/init', formData)
+    return response.data
+  }
+
+  async verifyDonation(verificationData: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }): Promise<any> {
+    const formData = new FormData()
+    formData.append('razorpay_order_id', verificationData.razorpay_order_id)
+    formData.append('razorpay_payment_id', verificationData.razorpay_payment_id)
+    formData.append('razorpay_signature', verificationData.razorpay_signature)
+    
+    const response: AxiosResponse<any> = await this.client.post('/donations/verify', formData)
+    return response.data
+  }
+
+  async getDonation(donationId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.get(`/donations/${donationId}`)
+    return response.data
+  }
+
+  async getDonationReceipt(donationId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.get(`/donations/${donationId}/receipt`)
     return response.data
   }
 }

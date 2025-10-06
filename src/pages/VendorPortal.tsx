@@ -12,382 +12,425 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Chip,
   CircularProgress,
-  Alert,
   Tabs,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import { 
-  Add, 
-  Upload, 
-  Receipt, 
-  AttachMoney, 
-  TrendingUp,
-  Store
+  Visibility,
+  LocalShipping,
+  CheckCircle,
+  PlayArrow,
+  Done,
+  Receipt
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { apiClient } from '../api/client'
-import DataTable from '../components/DataTable'
+
+interface TabPanelProps {
+  children?: React.ReactNode
+  index: number
+  value: number
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  )
+}
 
 const VendorPortal: React.FC = () => {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [tabValue, setTabValue] = useState(0)
-  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false)
-  const [newInvoice, setNewInvoice] = useState({
-    cause_id: '',
-    number: '',
-    amount: '',
-    files: [] as File[]
+  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false)
+  const [statusUpdateOpen, setStatusUpdateOpen] = useState(false)
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [deliveryDate, setDeliveryDate] = useState('')
+
+  // Fetch vendor's orders
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ['vendor-orders'],
+    queryFn: () => apiClient.getVendorOrders(),
   })
 
-  // Fetch vendor's causes
-  const { data: causes = [], isLoading: causesLoading } = useQuery({
-    queryKey: ['vendor-causes'],
-    queryFn: async () => {
-      // Mock data - replace with actual API call
-      return [
-        {
-          id: 1,
-          title: 'Emergency Food Relief',
-          ngo_name: 'Hope Trust',
-          status: 'LIVE',
-          target_amount: 50000,
-          current_amount: 25000
-        }
-      ]
-    },
-  })
-
-  // Fetch vendor invoices
-  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
-    queryKey: ['vendor-invoices'],
-    queryFn: async () => {
-      // Mock data - replace with actual API call
-      return [
-        {
-          id: 1,
-          cause_title: 'Emergency Food Relief',
-          number: 'INV-001',
-          amount: 15000,
-          status: 'SUBMITTED',
-          created_at: '2024-01-15T10:30:00Z',
-          files: ['invoice.pdf', 'receipt.pdf']
-        },
-        {
-          id: 2,
-          cause_title: 'Education Program',
-          number: 'INV-002',
-          amount: 25000,
-          status: 'NGO_APPROVED',
-          created_at: '2024-01-10T14:20:00Z',
-          files: ['invoice.pdf']
-        }
-      ]
-    },
-  })
-
-  // Create invoice mutation
-  const createInvoiceMutation = useMutation({
-    mutationFn: async (invoiceData: FormData) => {
-      return apiClient.createVendorInvoice(invoiceData)
+  // Update order status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status, deliveryDate }: { orderId: number, status: string, deliveryDate?: string }) => {
+      return apiClient.updateOrderStatus(orderId, { status, delivery_date: deliveryDate })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vendor-invoices'] })
-      setCreateInvoiceOpen(false)
-      setNewInvoice({ cause_id: '', number: '', amount: '', files: [] })
+      queryClient.invalidateQueries({ queryKey: ['vendor-orders'] })
+      setStatusUpdateOpen(false)
+      setSelectedOrder(null)
+      setDeliveryDate('')
     },
   })
 
-  const invoiceColumns = [
-    { field: 'id', headerName: 'ID', width: 80 },
-    { field: 'cause_title', headerName: 'Cause', width: 200 },
-    { field: 'number', headerName: 'Invoice #', width: 120 },
-    { field: 'amount', headerName: 'Amount', width: 120, renderCell: (params: any) => 
-      `₹${params.value.toLocaleString()}`
-    },
-    { field: 'status', headerName: 'Status', width: 120, renderCell: (params: any) => (
-      <Chip 
-        label={params.value} 
-        color={
-          params.value === 'SUBMITTED' ? 'warning' : 
-          params.value === 'NGO_APPROVED' ? 'success' : 
-          params.value === 'PAID' ? 'primary' : 'default'
-        }
-        size="small"
-      />
-    )},
-    { field: 'created_at', headerName: 'Date', width: 150, renderCell: (params: any) => 
-      new Date(params.value).toLocaleDateString()
-    },
-  ]
-
-  const handleCreateInvoice = () => {
-    const formData = new FormData()
-    formData.append('cause_id', newInvoice.cause_id)
-    formData.append('vendor_id', '1') // Mock vendor ID
-    formData.append('number', newInvoice.number)
-    formData.append('amount', newInvoice.amount)
-    
-    newInvoice.files.forEach((file, index) => {
-      formData.append('files', file)
-    })
-
-    createInvoiceMutation.mutate(formData)
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ORDER_RECEIVED': return 'info'
+      case 'ORDER_IN_PROCESS': return 'warning'
+      case 'ORDER_IN_TRANSIT': return 'primary'
+      case 'ORDER_DELIVERED': return 'success'
+      default: return 'default'
+    }
   }
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || [])
-    setNewInvoice({ ...newInvoice, files: [...newInvoice.files, ...files] })
+  // Helper function to filter orders by status
+  const getOrdersByStatus = (status: string) => {
+    return orders.filter(order => order.status === status)
   }
 
-  const TabPanel = ({ children, value, index }: { children: React.ReactNode, value: number, index: number }) => (
-    <div hidden={value !== index}>
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
-    </div>
+  // Helper function to get all orders
+  const getAllOrders = () => {
+    return orders
+  }
+
+  // Reusable OrderTable component
+  const OrderTable = ({ ordersToShow, emptyMessage }: { ordersToShow: any[], emptyMessage: string }) => (
+    <TableContainer component={Paper}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Order #</TableCell>
+            <TableCell>Cause</TableCell>
+            <TableCell>NGO</TableCell>
+            <TableCell>Amount</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Created</TableCell>
+            <TableCell>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {ordersLoading ? (
+            <TableRow>
+              <TableCell colSpan={7} align="center">
+                <CircularProgress size={24} />
+              </TableCell>
+            </TableRow>
+          ) : ordersToShow.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} align="center">
+                <Typography variant="body2" color="text.secondary">
+                  {emptyMessage}
+                </Typography>
+              </TableCell>
+            </TableRow>
+          ) : (
+            ordersToShow.map((order: any) => (
+              <TableRow key={order.id}>
+                <TableCell>{order.order_number}</TableCell>
+                <TableCell>{order.cause_title}</TableCell>
+                <TableCell>{order.ngo_name}</TableCell>
+                <TableCell>₹{order.order_amount.toLocaleString()}</TableCell>
+                <TableCell>
+                  <Chip
+                    icon={getStatusIcon(order.status)}
+                    label={order.status.replace('_', ' ')}
+                    color={getStatusColor(order.status) as any}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <Tooltip title="View Details">
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setSelectedOrder(order)
+                        setOrderDetailsOpen(true)
+                      }}
+                    >
+                      <Visibility />
+                    </IconButton>
+                  </Tooltip>
+                  {order.status !== 'ORDER_DELIVERED' && (
+                    <Tooltip title="Update Status">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSelectedOrder(order)
+                          setStatusUpdateOpen(true)
+                        }}
+                      >
+                        <CheckCircle />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
   )
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'ORDER_RECEIVED': return <Receipt />
+      case 'ORDER_IN_PROCESS': return <PlayArrow />
+      case 'ORDER_IN_TRANSIT': return <LocalShipping />
+      case 'ORDER_DELIVERED': return <Done />
+      default: return <Receipt />
+    }
+  }
+
+  const handleConfirmStatusUpdate = () => {
+    if (!selectedOrder) return
+    
+    const nextStatus = getNextStatus(selectedOrder.status)
+    if (!nextStatus) return
+
+    updateStatusMutation.mutate({
+      orderId: selectedOrder.id,
+      status: nextStatus,
+      deliveryDate: nextStatus === 'ORDER_IN_TRANSIT' ? deliveryDate : undefined
+    })
+  }
+
+  const getNextStatus = (currentStatus: string) => {
+    switch (currentStatus) {
+      case 'ORDER_RECEIVED': return 'ORDER_IN_PROCESS'
+      case 'ORDER_IN_PROCESS': return 'ORDER_IN_TRANSIT'
+      case 'ORDER_IN_TRANSIT': return 'ORDER_DELIVERED'
+      default: return null
+    }
+  }
+
+  if (ordersLoading) {
+    return (
+      <Container maxWidth="lg">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+          <CircularProgress />
+        </Box>
+      </Container>
+    )
+  }
 
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom>
-            Vendor Portal
+          Vendor Portal - {user?.vendor_name || 'Vendor Dashboard'}
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage your orders and submit invoices
-          </Typography>
-        </Box>
+        
+        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
+          <Tab label="Order Received" />
+          <Tab label="Order In Process" />
+          <Tab label="Order In Transit" />
+          <Tab label="Order Delivered" />
+          <Tab label="All Orders" />
+        </Tabs>
 
-        {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Store color="primary" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {causes.length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Active Orders
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Receipt color="secondary" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {invoices.length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Invoices
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <AttachMoney color="success" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      ₹{invoices.reduce((sum, invoice) => sum + invoice.amount, 0).toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Amount
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <TrendingUp color="warning" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {invoices.filter(inv => inv.status === 'NGO_APPROVED').length}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Approved
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Tabs */}
-        <Card>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
-              <Tab label="My Orders" />
-              <Tab label="Invoices" />
-            </Tabs>
-          </Box>
-
-          <TabPanel value={tabValue} index={0}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Active Orders
+        {/* Order Received Tab */}
+        <TabPanel value={tabValue} index={0}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Order Received ({getOrdersByStatus('ORDER_RECEIVED').length})
               </Typography>
-            </Box>
-
-            {causes.length === 0 ? (
-              <Alert severity="info">
-                No active orders found. Contact NGOs to get linked to their causes.
-              </Alert>
-            ) : (
-              <Grid container spacing={3}>
-                {causes.map((cause) => (
-                  <Grid item xs={12} sm={6} md={4} key={cause.id}>
-                    <Card>
-                      <CardContent>
-                        <Typography variant="h6" component="h2" gutterBottom>
-                          {cause.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" paragraph>
-                          NGO: {cause.ngo_name}
-                        </Typography>
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Goal: ₹{cause.target_amount.toLocaleString()}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Raised: ₹{cause.current_amount.toLocaleString()}
-                          </Typography>
-                        </Box>
-                        <Chip 
-                          label={cause.status} 
-                          color={cause.status === 'LIVE' ? 'success' : 'default'}
-                          size="small"
-                        />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={1}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Invoice History
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                New orders that need to be processed
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => setCreateInvoiceOpen(true)}
-              >
-                Submit Invoice
-              </Button>
-            </Box>
-
-            <DataTable
-              rows={invoices}
-              columns={invoiceColumns}
-              loading={invoicesLoading}
-            />
-          </TabPanel>
-        </Card>
-
-        {/* Create Invoice Dialog */}
-        <Dialog open={createInvoiceOpen} onClose={() => setCreateInvoiceOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Submit New Invoice</DialogTitle>
-          <DialogContent>
-            <FormControl fullWidth sx={{ mb: 2, mt: 1 }}>
-              <InputLabel>Cause</InputLabel>
-              <Select
-                value={newInvoice.cause_id}
-                onChange={(e) => setNewInvoice({ ...newInvoice, cause_id: e.target.value })}
-              >
-                {causes.map((cause) => (
-                  <MenuItem key={cause.id} value={cause.id}>
-                    {cause.title} - {cause.ngo_name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <TextField
-              fullWidth
-              label="Invoice Number"
-              value={newInvoice.number}
-              onChange={(e) => setNewInvoice({ ...newInvoice, number: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            
-            <TextField
-              fullWidth
-              label="Amount (₹)"
-              type="number"
-              value={newInvoice.amount}
-              onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Upload Files
-              </Typography>
-              <input
-                type="file"
-                multiple
-                onChange={handleFileUpload}
-                style={{ marginBottom: 16 }}
+              <OrderTable 
+                ordersToShow={getOrdersByStatus('ORDER_RECEIVED')} 
+                emptyMessage="No orders received yet"
               />
-              {newInvoice.files.length > 0 && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Selected files:
-                  </Typography>
-                  {newInvoice.files.map((file, index) => (
-                    <Chip
-                      key={index}
-                      label={file.name}
-                      size="small"
-                      sx={{ mr: 1, mb: 1 }}
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* Order In Process Tab */}
+        <TabPanel value={tabValue} index={1}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Order In Process ({getOrdersByStatus('ORDER_IN_PROCESS').length})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Orders currently being processed
+              </Typography>
+              <OrderTable 
+                ordersToShow={getOrdersByStatus('ORDER_IN_PROCESS')} 
+                emptyMessage="No orders in process"
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* Order In Transit Tab */}
+        <TabPanel value={tabValue} index={2}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Order In Transit ({getOrdersByStatus('ORDER_IN_TRANSIT').length})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Orders shipped and in transit
+              </Typography>
+              <OrderTable 
+                ordersToShow={getOrdersByStatus('ORDER_IN_TRANSIT')} 
+                emptyMessage="No orders in transit"
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* Order Delivered Tab */}
+        <TabPanel value={tabValue} index={3}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Order Delivered ({getOrdersByStatus('ORDER_DELIVERED').length})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Orders delivered and waiting for NGO confirmation
+              </Typography>
+              <OrderTable 
+                ordersToShow={getOrdersByStatus('ORDER_DELIVERED')} 
+                emptyMessage="No orders delivered yet"
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* All Orders Tab */}
+        <TabPanel value={tabValue} index={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                All Orders ({getAllOrders().length})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Complete overview of all orders
+              </Typography>
+              <OrderTable 
+                ordersToShow={getAllOrders()} 
+                emptyMessage="No orders found"
+              />
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* Order Details Dialog */}
+        <Dialog open={orderDetailsOpen} onClose={() => setOrderDetailsOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Order Details - {selectedOrder?.order_number}</DialogTitle>
+          <DialogContent>
+            {selectedOrder && (
+              <Box sx={{ mt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Cause</Typography>
+                    <Typography variant="body1">{selectedOrder.cause_title}</Typography>
+          </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">NGO</Typography>
+                    <Typography variant="body1">{selectedOrder.ngo_name}</Typography>
+          </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Order Amount</Typography>
+                    <Typography variant="body1">₹{selectedOrder.order_amount.toLocaleString()}</Typography>
+        </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                        <Chip 
+                      icon={getStatusIcon(selectedOrder.status)}
+                      label={selectedOrder.status.replace('_', ' ')}
+                      color={getStatusColor(selectedOrder.status) as any}
                     />
-                  ))}
-                </Box>
-              )}
-            </Box>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="text.secondary">Order Details</Typography>
+                    <Typography variant="body1">{selectedOrder.order_details}</Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" color="text.secondary">Delivery Address</Typography>
+                    <Typography variant="body1">{selectedOrder.delivery_address}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Contact Person</Typography>
+                    <Typography variant="body1">{selectedOrder.contact_person}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Contact Phone</Typography>
+                    <Typography variant="body1">{selectedOrder.contact_phone}</Typography>
+                  </Grid>
+                  {selectedOrder.notes && (
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" color="text.secondary">Notes</Typography>
+                      <Typography variant="body1">{selectedOrder.notes}</Typography>
+                    </Grid>
+                  )}
+              </Grid>
+              </Box>
+            )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCreateInvoiceOpen(false)}>Cancel</Button>
+            <Button onClick={() => setOrderDetailsOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Status Update Dialog */}
+        <Dialog open={statusUpdateOpen} onClose={() => setStatusUpdateOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Update Order Status</DialogTitle>
+          <DialogContent>
+            {selectedOrder && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body1" gutterBottom>
+                  Update order <strong>{selectedOrder.order_number}</strong> status from{' '}
+                  <Chip label={selectedOrder.status.replace('_', ' ')} size="small" /> to{' '}
+                  <Chip label={getNextStatus(selectedOrder.status)?.replace('_', ' ')} size="small" color="primary" />
+                </Typography>
+                
+                {getNextStatus(selectedOrder.status) === 'ORDER_IN_TRANSIT' && (
+            <TextField
+              fullWidth
+                    label="Expected Delivery Date"
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ mt: 2 }}
+                  />
+                )}
+                </Box>
+              )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setStatusUpdateOpen(false)}>Cancel</Button>
             <Button 
-              onClick={handleCreateInvoice} 
+              onClick={handleConfirmStatusUpdate}
               variant="contained"
-              disabled={createInvoiceMutation.isPending || !newInvoice.cause_id || !newInvoice.number || !newInvoice.amount}
+              disabled={updateStatusMutation.isPending}
             >
-              {createInvoiceMutation.isPending ? <CircularProgress size={20} /> : 'Submit Invoice'}
+              {updateStatusMutation.isPending ? <CircularProgress size={20} /> : 'Update Status'}
             </Button>
           </DialogActions>
         </Dialog>

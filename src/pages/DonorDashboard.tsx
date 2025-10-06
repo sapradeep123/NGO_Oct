@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Container,
   Typography,
@@ -10,56 +10,137 @@ import {
   Button,
   CircularProgress,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
-import { AttachMoney, Receipt, TrendingUp } from '@mui/icons-material'
+import { 
+  AttachMoney, 
+  Receipt, 
+  TrendingUp, 
+  Visibility, 
+  Support, 
+  Download,
+  LocalShipping,
+  CheckCircle,
+  Schedule,
+  Warning
+} from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { apiClient } from '../api/client'
 import DataTable from '../components/DataTable'
 
+interface TabPanelProps {
+  children?: React.ReactNode
+  index: number
+  value: number
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  )
+}
+
 const DonorDashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [tabValue, setTabValue] = useState(0)
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false)
+  const [deliveryStatusDialogOpen, setDeliveryStatusDialogOpen] = useState(false)
+  const [taxDocsDialogOpen, setTaxDocsDialogOpen] = useState(false)
+  const [selectedCause, setSelectedCause] = useState<any>(null)
+  const [deliveryStatus, setDeliveryStatus] = useState<any>(null)
+  const [ticketForm, setTicketForm] = useState({
+    subject: '',
+    description: '',
+    priority: 'MEDIUM'
+  })
 
-  // Mock data for donor dashboard - in real implementation, these would be actual API calls
+  // Fetch donor's donations
   const { data: donations = [], isLoading: donationsLoading } = useQuery({
     queryKey: ['donor-donations'],
-    queryFn: async () => {
-      // Mock donation data - replace with actual API call
-      return [
-        {
-          id: 1,
-          cause_title: 'Emergency Food Relief',
-          ngo_name: 'Hope Trust',
-          amount: 5000,
-          status: 'CAPTURED',
-          created_at: '2024-01-15T10:30:00Z',
-          receipt_url: '/receipts/1.pdf'
-        },
-        {
-          id: 2,
-          cause_title: 'Education for Children',
-          ngo_name: 'Care Works',
-          amount: 2500,
-          status: 'CAPTURED',
-          created_at: '2024-01-10T14:20:00Z',
-          receipt_url: '/receipts/2.pdf'
-        }
-      ]
+    queryFn: () => apiClient.getDonorDonations(),
+  })
+
+  // Fetch donor's tickets
+  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
+    queryKey: ['donor-tickets'],
+    queryFn: () => apiClient.getDonorTickets(),
+  })
+
+  // Fetch tax documents
+  const { data: taxDocuments = [], isLoading: taxDocsLoading } = useQuery({
+    queryKey: ['donor-tax-documents'],
+    queryFn: () => apiClient.getDonorTaxDocuments(),
+  })
+
+  // Create ticket mutation
+  const createTicketMutation = useMutation({
+    mutationFn: (ticketData: any) => apiClient.createDonorTicket(ticketData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['donor-tickets'] })
+      setTicketDialogOpen(false)
+      setTicketForm({ subject: '', description: '', priority: 'MEDIUM' })
+    },
+  })
+
+  // Get delivery status mutation
+  const getDeliveryStatusMutation = useMutation({
+    mutationFn: (causeId: number) => apiClient.getCauseDeliveryStatus(causeId),
+    onSuccess: (data) => {
+      setDeliveryStatus(data)
+      setDeliveryStatusDialogOpen(true)
     },
   })
 
   const { data: stats = { totalDonated: 0, totalCauses: 0, thisMonth: 0 } } = useQuery({
     queryKey: ['donor-stats'],
     queryFn: async () => {
-      // Mock stats - replace with actual API call
-      return {
-        totalDonated: 7500,
-        totalCauses: 2,
-        thisMonth: 5000
-      }
+      // Calculate stats from donations
+      const totalDonated = donations.reduce((sum: number, donation: any) => sum + donation.amount, 0)
+      const totalCauses = new Set(donations.map((d: any) => d.cause_id)).size
+      const thisMonth = donations
+        .filter((d: any) => new Date(d.date).getMonth() === new Date().getMonth())
+        .reduce((sum: number, donation: any) => sum + donation.amount, 0)
+      
+      return { totalDonated, totalCauses, thisMonth }
     },
+    enabled: donations.length > 0
   })
 
   const donationColumns = [
@@ -70,25 +151,107 @@ const DonorDashboard: React.FC = () => {
     { field: 'status', headerName: 'Status', width: 120, renderCell: (params: any) => (
       <Chip 
         label={params.value} 
-        color={params.value === 'CAPTURED' ? 'success' : 'default'}
-        size="small"
+        color={params.value === 'COMPLETED' ? 'success' : 'info'} 
+        size="small" 
       />
     )},
-    { field: 'created_at', headerName: 'Date', width: 150, renderCell: (params: any) => 
-      new Date(params.value).toLocaleDateString()
-    },
+    { field: 'date', headerName: 'Date', width: 120, renderCell: (params: any) => new Date(params.value).toLocaleDateString() },
   ]
 
   const donationActions = [
     {
-      icon: <Receipt />,
-      label: 'Download Receipt',
+      icon: <Visibility />,
+      label: 'View Details',
       onClick: (params: any) => {
-        // In real implementation, download receipt
-        alert(`Downloading receipt for donation ${params.id}`)
+        // Show donation details
+        console.log('View donation:', params.row)
+      }
+    },
+    {
+      icon: <LocalShipping />,
+      label: 'Check Delivery Status',
+      onClick: (params: any) => {
+        setSelectedCause(params.row)
+        getDeliveryStatusMutation.mutate(params.row.cause_id)
+      }
+    },
+    {
+      icon: <Support />,
+      label: 'Raise Ticket',
+      onClick: (params: any) => {
+        setSelectedCause(params.row)
+        setTicketForm({
+          subject: `Delivery Status Inquiry - ${params.row.cause_title}`,
+          description: `I donated to ${params.row.cause_title} but haven't received any updates on delivery status.`,
+          priority: 'MEDIUM'
+        })
+        setTicketDialogOpen(true)
       }
     }
   ]
+
+  const ticketColumns = [
+    { field: 'id', headerName: 'ID', width: 80 },
+    { field: 'cause_title', headerName: 'Cause', width: 200 },
+    { field: 'subject', headerName: 'Subject', width: 250 },
+    { field: 'status', headerName: 'Status', width: 120, renderCell: (params: any) => (
+      <Chip 
+        label={params.value} 
+        color={params.value === 'RESOLVED' ? 'success' : params.value === 'OPEN' ? 'warning' : 'info'} 
+        size="small" 
+      />
+    )},
+    { field: 'priority', headerName: 'Priority', width: 100 },
+    { field: 'created_at', headerName: 'Created', width: 120, renderCell: (params: any) => new Date(params.value).toLocaleDateString() },
+  ]
+
+  const taxDocColumns = [
+    { field: 'id', headerName: 'ID', width: 80 },
+    { field: 'cause_title', headerName: 'Cause', width: 200 },
+    { field: 'ngo_name', headerName: 'NGO', width: 150 },
+    { field: 'amount', headerName: 'Amount', width: 120, renderCell: (params: any) => `₹${params.value.toLocaleString()}` },
+    { field: 'date', headerName: 'Date', width: 120, renderCell: (params: any) => new Date(params.value).toLocaleDateString() },
+    { field: 'tax_exempt', headerName: 'Tax Exempt', width: 120, renderCell: (params: any) => (
+      <Chip 
+        label={params.value ? 'Yes' : 'No'} 
+        color={params.value ? 'success' : 'default'} 
+        size="small" 
+      />
+    )},
+  ]
+
+  const getDeliveryStatusColor = (status: string) => {
+    switch (status) {
+      case 'ORDER_RECEIVED': return 'info'
+      case 'ORDER_IN_PROCESS': return 'warning'
+      case 'ORDER_IN_TRANSIT': return 'primary'
+      case 'ORDER_DELIVERED': return 'success'
+      default: return 'default'
+    }
+  }
+
+  const getDeliveryStatusIcon = (status: string) => {
+    switch (status) {
+      case 'ORDER_RECEIVED': return <Receipt />
+      case 'ORDER_IN_PROCESS': return <Schedule />
+      case 'ORDER_IN_TRANSIT': return <LocalShipping />
+      case 'ORDER_DELIVERED': return <CheckCircle />
+      default: return <Warning />
+    }
+  }
+
+  const handleCreateTicket = () => {
+    if (!selectedCause || !ticketForm.subject || !ticketForm.description) return
+    
+    createTicketMutation.mutate({
+      cause_id: selectedCause.cause_id,
+      cause_title: selectedCause.cause_title,
+      ngo_name: selectedCause.ngo_name,
+      subject: ticketForm.subject,
+      description: ticketForm.description,
+      priority: ticketForm.priority
+    })
+  }
 
   if (donationsLoading) {
     return (
@@ -103,132 +266,296 @@ const DonorDashboard: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ py: 4 }}>
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Welcome back, {user?.first_name}!
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Track your donations and impact
-          </Typography>
-        </Box>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Donor Dashboard - {user?.first_name} {user?.last_name}
+        </Typography>
 
-        {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <AttachMoney color="primary" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      ₹{stats.totalDonated.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Donated
-                    </Typography>
+        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
+          <Tab label="My Donations" />
+          <Tab label="Support Tickets" />
+          <Tab label="Tax Documents" />
+        </Tabs>
+
+        {/* My Donations Tab */}
+        <TabPanel value={tabValue} index={0}>
+          {/* Stats Cards */}
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <AttachMoney color="primary" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        ₹{stats.totalDonated.toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Donated
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <TrendingUp color="success" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {stats.totalCauses}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Causes Supported
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={4}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Receipt color="success" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        ₹{stats.thisMonth.toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        This Month
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <TrendingUp color="secondary" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {stats.totalCauses}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Causes Supported
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+          {/* Donations Table */}
+          <Box sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h5">
+                Recent Donations
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/')}
+              >
+                Browse More Causes
+              </Button>
+            </Box>
 
-          <Grid item xs={12} sm={6} md={4}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Receipt color="success" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      ₹{stats.thisMonth.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      This Month
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+            {donations.length === 0 ? (
+              <Alert severity="info">
+                You haven't made any donations yet. Start supporting causes that matter to you!
+              </Alert>
+            ) : (
+              <DataTable
+                rows={donations}
+                columns={donationColumns}
+                actions={donationActions}
+                loading={donationsLoading}
+              />
+            )}
+          </Box>
 
-        {/* Recent Donations */}
-        <Box sx={{ mb: 4 }}>
+          {/* Quick Actions */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Quick Actions
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate('/')}
+                >
+                  Browse Causes
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/')}
+                >
+                  View NGOs
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setTaxDocsDialogOpen(true)}
+                >
+                  Tax Documents
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </TabPanel>
+
+        {/* Support Tickets Tab */}
+        <TabPanel value={tabValue} index={1}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5">
-              Recent Donations
+              Support Tickets
             </Typography>
             <Button
-              variant="outlined"
-              onClick={() => navigate('/')}
+              variant="contained"
+              onClick={() => setTicketDialogOpen(true)}
             >
-              Browse More Causes
+              Create New Ticket
             </Button>
           </Box>
 
-          {donations.length === 0 ? (
+          {tickets.length === 0 ? (
             <Alert severity="info">
-              You haven't made any donations yet. Start supporting causes that matter to you!
+              You haven't created any support tickets yet.
             </Alert>
           ) : (
             <DataTable
-              rows={donations}
-              columns={donationColumns}
-              actions={donationActions}
-              loading={donationsLoading}
+              rows={tickets}
+              columns={ticketColumns}
+              loading={ticketsLoading}
             />
           )}
-        </Box>
+        </TabPanel>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Quick Actions
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                onClick={() => navigate('/')}
-              >
-                Browse Causes
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/')}
-              >
-                View NGOs
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  // In real implementation, this would show tax documents
-                  alert('Tax documents feature coming soon!')
-                }}
-              >
-                Tax Documents
-              </Button>
+        {/* Tax Documents Tab */}
+        <TabPanel value={tabValue} index={2}>
+          <Typography variant="h5" gutterBottom>
+            Tax Documents
+          </Typography>
+          
+          {taxDocuments.length === 0 ? (
+            <Alert severity="info">
+              No tax documents available yet. Make a donation to generate tax receipts.
+            </Alert>
+          ) : (
+            <DataTable
+              rows={taxDocuments}
+              columns={taxDocColumns}
+              loading={taxDocsLoading}
+            />
+          )}
+        </TabPanel>
+
+        {/* Create Ticket Dialog */}
+        <Dialog open={ticketDialogOpen} onClose={() => setTicketDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Create Support Ticket</DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <TextField
+                fullWidth
+                label="Subject"
+                value={ticketForm.subject}
+                onChange={(e) => setTicketForm({ ...ticketForm, subject: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                fullWidth
+                label="Description"
+                multiline
+                rows={4}
+                value={ticketForm.description}
+                onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
+                sx={{ mb: 2 }}
+              />
+              <FormControl fullWidth>
+                <InputLabel>Priority</InputLabel>
+                <Select
+                  value={ticketForm.priority}
+                  onChange={(e) => setTicketForm({ ...ticketForm, priority: e.target.value })}
+                >
+                  <MenuItem value="LOW">Low</MenuItem>
+                  <MenuItem value="MEDIUM">Medium</MenuItem>
+                  <MenuItem value="HIGH">High</MenuItem>
+                </Select>
+              </FormControl>
             </Box>
-          </CardContent>
-        </Card>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTicketDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleCreateTicket} 
+              variant="contained"
+              disabled={!ticketForm.subject || !ticketForm.description || createTicketMutation.isPending}
+            >
+              {createTicketMutation.isPending ? 'Creating...' : 'Create Ticket'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delivery Status Dialog */}
+        <Dialog open={deliveryStatusDialogOpen} onClose={() => setDeliveryStatusDialogOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Delivery Status - {deliveryStatus?.cause_title}</DialogTitle>
+          <DialogContent>
+            {deliveryStatus && (
+              <Box sx={{ pt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Cause</Typography>
+                    <Typography variant="body1">{deliveryStatus.cause_title}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">NGO</Typography>
+                    <Typography variant="body1">{deliveryStatus.ngo_name}</Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Current Status</Typography>
+                    <Chip
+                      icon={getDeliveryStatusIcon(deliveryStatus.order_status)}
+                      label={deliveryStatus.order_status?.replace('_', ' ')}
+                      color={getDeliveryStatusColor(deliveryStatus.order_status) as any}
+                      sx={{ mt: 1 }}
+                    />
+                  </Grid>
+                  {deliveryStatus.delivery_date && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">Expected Delivery</Typography>
+                      <Typography variant="body1">{new Date(deliveryStatus.delivery_date).toLocaleDateString()}</Typography>
+                    </Grid>
+                  )}
+                  {deliveryStatus.delivered_at && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">Delivered On</Typography>
+                      <Typography variant="body1">{new Date(deliveryStatus.delivered_at).toLocaleDateString()}</Typography>
+                    </Grid>
+                  )}
+                  {deliveryStatus.ngo_confirmed_at && (
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="subtitle2" color="text.secondary">NGO Confirmed</Typography>
+                      <Typography variant="body1">{new Date(deliveryStatus.ngo_confirmed_at).toLocaleDateString()}</Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeliveryStatusDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Tax Documents Dialog */}
+        <Dialog open={taxDocsDialogOpen} onClose={() => setTaxDocsDialogOpen(false)} maxWidth="lg" fullWidth>
+          <DialogTitle>Tax Documents</DialogTitle>
+          <DialogContent>
+            {taxDocuments.length === 0 ? (
+              <Alert severity="info">
+                No tax documents available yet. Make a donation to generate tax receipts.
+              </Alert>
+            ) : (
+              <DataTable
+                rows={taxDocuments}
+                columns={taxDocColumns}
+                loading={taxDocsLoading}
+              />
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTaxDocsDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Container>
   )

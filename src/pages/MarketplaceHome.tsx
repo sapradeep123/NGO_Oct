@@ -36,7 +36,46 @@ import { apiClient } from '../api/client'
 const MarketplaceHome: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
+  const [imageErrors, setImageErrors] = useState<Set<number>>(new Set())
+  const [imageLoading, setImageLoading] = useState<Set<number>>(new Set())
   const navigate = useNavigate()
+
+  const handleImageError = (causeId: number) => {
+    console.log(`Image failed to load for cause ${causeId}`)
+    setImageErrors(prev => new Set(prev).add(causeId))
+    setImageLoading(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(causeId)
+      return newSet
+    })
+  }
+
+  const handleImageLoad = (causeId: number) => {
+    setImageLoading(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(causeId)
+      return newSet
+    })
+  }
+
+  const handleImageStart = (causeId: number) => {
+    setImageLoading(prev => new Set(prev).add(causeId))
+  }
+
+  const getImageUrl = (cause: any) => {
+    if (imageErrors.has(cause.id)) {
+      return `https://via.placeholder.com/400x300/f3f4f6/6b7280?text=${encodeURIComponent(cause.title)}`
+    }
+    
+    // Try multiple fallback sources
+    const fallbackUrls = [
+      cause.image_url,
+      `https://picsum.photos/400/300?random=${cause.id}`,
+      `https://via.placeholder.com/400x300/f3f4f6/6b7280?text=${encodeURIComponent(cause.title)}`
+    ]
+    
+    return fallbackUrls.find(url => url) || `https://via.placeholder.com/400x300/f3f4f6/6b7280?text=${encodeURIComponent(cause.title)}`
+  }
 
   // Fetch categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -290,12 +329,31 @@ const MarketplaceHome: React.FC = () => {
                 transition: 'all 0.3s'
               }}>
                 <Box sx={{ position: 'relative' }}>
+                  {imageLoading.has(cause.id) && (
+                    <Box sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#f3f4f6',
+                      zIndex: 1
+                    }}>
+                      <CircularProgress size={40} />
+                    </Box>
+                  )}
                   <CardMedia
                     component="img"
                     height="200"
-                    image={cause.tenant?.logo_url || '/placeholder-cause.jpg'}
+                    image={getImageUrl(cause)}
                     alt={cause.title}
                     sx={{ objectFit: 'cover' }}
+                    onLoadStart={() => handleImageStart(cause.id)}
+                    onLoad={() => handleImageLoad(cause.id)}
+                    onError={() => handleImageError(cause.id)}
                   />
                   <Box sx={{ 
                     position: 'absolute', 

@@ -10,12 +10,11 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Divider,
 } from '@mui/material'
 import { AccountBalance, Email, Phone, Language, VolunteerActivism } from '@mui/icons-material'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient, Tenant, Cause } from '../api/client'
+import { apiClient } from '../api/client'
 
 const NgoPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
