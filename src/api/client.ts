@@ -10,6 +10,8 @@ export interface User {
   is_active: boolean
   created_at: string
   role?: string
+  ngo_id?: number
+  ngo_name?: string
 }
 
 export interface LoginRequest {
@@ -201,6 +203,36 @@ class ApiClient {
   async getCauses(params?: { tenant?: string; status?: string; category?: string }): Promise<Cause[]> {
     const response: AxiosResponse<{ value: Cause[]; Count: number }> = await this.client.get('/public/causes', { params })
     return response.data.value || []
+  }
+
+  async getAdminCauses(): Promise<Cause[]> {
+    const response: AxiosResponse<{ value: Cause[]; Count: number }> = await this.client.get('/admin/causes')
+    return response.data.value || []
+  }
+
+  // Domain Management Methods
+  async getAdminDomains(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/domains')
+    return response.data.value || []
+  }
+
+  async createDomain(host: string, isPrimary: boolean = false): Promise<any> {
+    const formData = new FormData()
+    formData.append('host', host)
+    formData.append('is_primary', isPrimary.toString())
+    
+    const response: AxiosResponse<any> = await this.client.post('/admin/domains', formData)
+    return response.data
+  }
+
+  async verifyDomain(domainId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.post(`/admin/domains/${domainId}/verify`)
+    return response.data
+  }
+
+  async deleteDomain(domainId: number): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.delete(`/admin/domains/${domainId}`)
+    return response.data
   }
 
   async getTenantBySlug(slug: string): Promise<Tenant> {

@@ -40,6 +40,8 @@ import {
   Person,
   LockReset,
   AdminPanelSettings,
+  Pending,
+  TrendingUp,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -48,6 +50,7 @@ import DataTable from '../components/DataTable'
 const AdminConsole: React.FC = () => {
   const queryClient = useQueryClient()
   const [tabValue, setTabValue] = useState(0)
+  const [causeFilter, setCauseFilter] = useState<string>('all')
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
   const [createCauseOpen, setCreateCauseOpen] = useState(false)
   const [createNGOOpen, setCreateNGOOpen] = useState(false)
@@ -148,10 +151,24 @@ const AdminConsole: React.FC = () => {
   })
 
   // Fetch pending causes
-  const { data: pendingCauses = [], isLoading: pendingCausesLoading } = useQuery({
+  const { data: pendingCauses = [] } = useQuery({
     queryKey: ['admin-pending-causes'],
     queryFn: () => apiClient.getPendingCauses(),
   })
+
+  // Fetch all causes (active, inactive, pending) for Platform Admin
+  const { data: allCauses = [], isLoading: allCausesLoading } = useQuery({
+    queryKey: ['admin-all-causes'],
+    queryFn: () => apiClient.getAdminCauses(),
+  })
+
+  // Filter causes based on selected filter
+  const filteredCauses = React.useMemo(() => {
+    if (causeFilter === 'all') return allCauses
+    if (causeFilter === 'active') return allCauses.filter(c => c.status === 'LIVE')
+    if (causeFilter === 'pending') return allCauses.filter(c => c.status === 'PENDING_APPROVAL')
+    return allCauses
+  }, [allCauses, causeFilter])
 
   // Fetch NGO-Vendor associations
   const { data: associations = [], isLoading: associationsLoading } = useQuery({
@@ -519,7 +536,7 @@ const AdminConsole: React.FC = () => {
                       {pendingCauses.length}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Pending Causes
+                      Pending Approval
                     </Typography>
                   </Box>
                   <CheckCircle sx={{ fontSize: 40, opacity: 0.9 }} />
@@ -635,10 +652,10 @@ const AdminConsole: React.FC = () => {
               </Grid>
               <Grid item xs={12} md={3}>
                 <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#DC2626' }}>4</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#DC2626' }}>{allCauses.length}</Typography>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Causes</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {pendingCauses.length} pending approval
+                    {allCauses.filter(c => c.status === 'LIVE').length} active, {pendingCauses.length} pending
                   </Typography>
                   <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                     Only approved causes visible to donors
@@ -924,7 +941,7 @@ const AdminConsole: React.FC = () => {
         <Card>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-              <Tab label="Pending Causes" icon={<CheckCircle />} iconPosition="start" />
+              <Tab label="All Causes" icon={<CheckCircle />} iconPosition="start" />
               <Tab label="NGOs" icon={<AccountBalance />} iconPosition="start" />
               <Tab label="Vendors" icon={<Store />} iconPosition="start" />
               <Tab label="Donors" icon={<Person />} iconPosition="start" />
@@ -935,64 +952,209 @@ const AdminConsole: React.FC = () => {
           </Box>
 
           <TabPanel value={tabValue} index={0}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">
-                Causes Pending Approval
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<CheckCircle />}
-                onClick={() => setCreateCauseOpen(true)}
-                sx={{ backgroundColor: '#059669', '&:hover': { backgroundColor: '#047857' } }}
-              >
-                Create Cause
-              </Button>
-            </Box>
+            <Box sx={{ p: 3 }}>
+              {/* Header Section */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 1 }}>
+                    Cause Management
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Manage all causes across the platform - Active, Pending, and Inactive
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  startIcon={<CheckCircle />}
+                  onClick={() => setCreateCauseOpen(true)}
+                  sx={{ 
+                    backgroundColor: '#059669', 
+                    '&:hover': { backgroundColor: '#047857' },
+                    px: 3,
+                    py: 1.5,
+                    fontSize: '0.95rem',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Create New Cause
+                </Button>
+              </Box>
 
-            <DataTable
-              rows={pendingCauses}
-              columns={[
-                { field: 'id', headerName: 'ID', width: 80 },
-                { field: 'title', headerName: 'Cause Title', width: 200 },
-                { field: 'ngo_names', headerName: 'NGOs', width: 200, renderCell: (params: any) => 
-                  Array.isArray(params.value) ? params.value.join(', ') : params.value
-                },
-                { field: 'category_name', headerName: 'Category', width: 150 },
-                { field: 'target_amount', headerName: 'Target Amount', width: 150, renderCell: (params: any) => 
-                  `₹${params.value?.toLocaleString() || '0'}`
-                },
-                { field: 'status', headerName: 'Status', width: 150, renderCell: (params: any) => (
-                  <Chip 
-                    label={params.value} 
-                    color={params.value === 'PENDING_APPROVAL' ? 'warning' : 'default'}
-                    size="small"
+              {/* Statistics Cards */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ 
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    color: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}>
+                    <CardContent sx={{ p: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                            {allCauses.filter(c => c.status === 'LIVE').length}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                            Active Causes
+                          </Typography>
+                        </Box>
+                        <CheckCircle sx={{ fontSize: 32, opacity: 0.9 }} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ 
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    color: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                  }}>
+                    <CardContent sx={{ p: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                            {pendingCauses.length}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                            Pending Approval
+                          </Typography>
+                        </Box>
+                        <Pending sx={{ fontSize: 32, opacity: 0.9 }} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ 
+                    background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                    color: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+                  }}>
+                    <CardContent sx={{ p: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                            {allCauses.length}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                            Total Causes
+                          </Typography>
+                        </Box>
+                        <TrendingUp sx={{ fontSize: 32, opacity: 0.9 }} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ 
+                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                    color: 'white',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                  }}>
+                    <CardContent sx={{ p: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Box>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                            ₹{allCauses.reduce((sum, c) => sum + (c.current_amount || 0), 0).toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                            Total Raised
+                          </Typography>
+                        </Box>
+                        <AttachMoney sx={{ fontSize: 32, opacity: 0.9 }} />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {/* Causes Table */}
+              <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <CardContent sx={{ p: 0 }}>
+                  <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                      {causeFilter === 'all' ? 'All Causes' : 
+                       causeFilter === 'active' ? 'Active Causes' : 
+                       causeFilter === 'pending' ? 'Pending Causes' : 'All Causes'} ({filteredCauses.length})
+                    </Typography>
+                    
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Filter by Status</InputLabel>
+                      <Select
+                        value={causeFilter}
+                        label="Filter by Status"
+                        onChange={(e) => setCauseFilter(e.target.value)}
+                        sx={{ backgroundColor: 'white' }}
+                      >
+                        <MenuItem value="all">All Causes</MenuItem>
+                        <MenuItem value="active">Active Only</MenuItem>
+                        <MenuItem value="pending">Pending Only</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
+                  
+                  <DataTable
+                    rows={filteredCauses}
+                    columns={[
+                      { field: 'id', headerName: 'ID', width: 70, headerAlign: 'center', align: 'center' },
+                      { field: 'title', headerName: 'Cause Title', width: 250, headerAlign: 'left' },
+                      { field: 'ngo_names', headerName: 'NGOs', width: 180, renderCell: (params: any) => 
+                        Array.isArray(params.value) ? params.value.join(', ') : params.value
+                      },
+                      { field: 'category_name', headerName: 'Category', width: 140, headerAlign: 'center', align: 'center' },
+                      { field: 'target_amount', headerName: 'Target', width: 120, renderCell: (params: any) => 
+                        `₹${params.value?.toLocaleString() || '0'}`, headerAlign: 'right', align: 'right'
+                      },
+                      { field: 'current_amount', headerName: 'Raised', width: 120, renderCell: (params: any) => 
+                        `₹${(params.value || 0).toLocaleString()}`, headerAlign: 'right', align: 'right'
+                      },
+                      { field: 'status', headerName: 'Status', width: 130, renderCell: (params: any) => (
+                        <Chip 
+                          label={params.value === 'LIVE' ? 'Active' : params.value === 'PENDING_APPROVAL' ? 'Pending' : params.value}
+                          color={params.value === 'LIVE' ? 'success' : params.value === 'PENDING_APPROVAL' ? 'warning' : 'default'}
+                          size="small"
+                          sx={{ fontWeight: 'bold' }}
+                        />
+                      ), headerAlign: 'center', align: 'center' },
+                      { field: 'created_at', headerName: 'Created', width: 120, renderCell: (params: any) => 
+                        new Date(params.value).toLocaleDateString(), headerAlign: 'center', align: 'center'
+                      },
+                    ]}
+                    actions={[
+                      {
+                        icon: <CheckCircle />,
+                        label: 'Approve',
+                        onClick: (params: any) => {
+                          if (params.row.status === 'PENDING_APPROVAL') {
+                            approveCauseMutation.mutate(params.id)
+                          }
+                        }
+                      },
+                      {
+                        icon: <Cancel />,
+                        label: 'Reject',
+                        onClick: (params: any) => {
+                          if (params.row.status === 'PENDING_APPROVAL') {
+                            const reason = prompt('Reason for rejection:')
+                            if (reason) {
+                              rejectCauseMutation.mutate({ causeId: params.id, reason })
+                            }
+                          }
+                        }
+                      }
+                    ]}
+                    loading={allCausesLoading}
                   />
-                )},
-                { field: 'created_at', headerName: 'Created', width: 150, renderCell: (params: any) => 
-                  new Date(params.value).toLocaleDateString()
-                },
-              ]}
-              actions={[
-                {
-                  icon: <CheckCircle />,
-                  label: 'Approve',
-                  onClick: (params: any) => {
-                    approveCauseMutation.mutate(params.id)
-                  }
-                },
-                {
-                  icon: <Cancel />,
-                  label: 'Reject',
-                  onClick: (params: any) => {
-                    const reason = prompt('Reason for rejection:')
-                    if (reason) {
-                      rejectCauseMutation.mutate({ causeId: params.id, reason })
-                    }
-                  }
-                }
-              ]}
-              loading={pendingCausesLoading}
-            />
+                </CardContent>
+              </Card>
+            </Box>
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>

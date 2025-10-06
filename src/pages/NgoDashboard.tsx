@@ -48,7 +48,8 @@ import {
   Visibility,
   Download,
   Preview,
-  OpenInNew
+  OpenInNew,
+  Language
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -93,6 +94,7 @@ const NgoDashboard: React.FC = () => {
   const [micrositePreviewOpen, setMicrositePreviewOpen] = useState(false)
   const [aboutPageOpen, setAboutPageOpen] = useState(false)
   const [contactPageOpen, setContactPageOpen] = useState(false)
+  const [domainManagementOpen, setDomainManagementOpen] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<any>(null)
   
   // State for forms
@@ -130,23 +132,52 @@ const NgoDashboard: React.FC = () => {
     social_media: {} as Record<string, string>
   })
 
+  // Domain management state
+  const [domainData, setDomainData] = useState({
+    custom_domain: '',
+    subdomain: '',
+    status: 'PENDING_DNS',
+    dns_instructions: ''
+  })
+
   // Fetch NGO data (filtered by user's NGO)
   const { data: ngoData, isLoading: ngoLoading } = useQuery({
     queryKey: ['ngo-data'],
     queryFn: () => apiClient.getAdminNGOs(),
-    select: (data: any) => data.value?.[0] // Get first NGO (user's NGO)
+    select: (data: any) => {
+      // For NGO users, the backend already returns only their NGO
+      // For platform admin, we need to filter by user's NGO if they have one
+      if (user?.role === 'NGO_ADMIN' || user?.role === 'NGO_STAFF') {
+        return data.value?.[0] // Backend already filters to user's NGO
+      }
+      return data.value?.[0] // Default behavior
+    }
   })
 
-  // Fetch associated vendors
+  // Fetch associated vendors (filtered by user's NGO)
   const { data: vendors = [] } = useQuery({
     queryKey: ['ngo-vendors'],
-    queryFn: () => apiClient.getAdminVendors()
+    queryFn: () => apiClient.getAdminVendors(),
+    select: (data: any) => {
+      // For NGO users, filter vendors by their NGO associations
+      if (user?.role === 'NGO_ADMIN' || user?.role === 'NGO_STAFF') {
+        const userNgoId = user.ngo_id
+        return data.value?.filter((vendor: any) => 
+          vendor.ngo_associations?.some((assoc: any) => assoc.ngo_id === userNgoId)
+        ) || []
+      }
+      return data.value || []
+    }
   })
 
-  // Fetch causes
+  // Fetch causes (filtered by user's NGO)
   const { data: causes = [] } = useQuery({
     queryKey: ['ngo-causes'],
-    queryFn: () => apiClient.getCauses({ tenant: 'hope-trust' })
+    queryFn: () => apiClient.getAdminCauses(),
+    select: (data: any) => {
+      // The backend already filters causes by user's NGO
+      return data || []
+    }
   })
 
   // Fetch categories
@@ -215,10 +246,10 @@ const NgoDashboard: React.FC = () => {
     },
   })
 
-  // Mock data for demonstration
+  // Mock data for demonstration (fallback when API data is not available)
   const mockNgoData = {
-    id: 1,
-    name: "Hope Trust",
+    id: user?.ngo_id || 1,
+    name: user?.ngo_name || "Hope Trust",
     description: "Dedicated to providing hope and support to communities in need through education, healthcare, and emergency relief programs.",
     logo_url: "https://picsum.photos/200/200?random=1",
     contact_email: "sarah@hopetrust.org",
@@ -230,6 +261,7 @@ const NgoDashboard: React.FC = () => {
     registration_number: "NGO/2024/001",
     pan_number: "AAACH1234H",
     contact_person: "Dr. Sarah Johnson",
+    slug: "hope-trust",
     photo_gallery: [
       "https://picsum.photos/400/300?random=11",
       "https://picsum.photos/400/300?random=12",
@@ -273,6 +305,7 @@ const NgoDashboard: React.FC = () => {
     }
   ]
 
+  // Mock donors with detailed information
   const mockDonors = [
     {
       id: 1,
@@ -282,7 +315,11 @@ const NgoDashboard: React.FC = () => {
       total_donations: 25000,
       last_donation_date: "2024-01-20T14:20:00Z",
       donation_reasons: ["Education", "Healthcare"],
-      causes_supported: 3
+      causes_supported: 3,
+      donation_history: [
+        { cause: "School Infrastructure Development", amount: 15000, date: "2024-01-20", reason: "Education" },
+        { cause: "Medical Equipment Fund", amount: 10000, date: "2024-01-15", reason: "Healthcare" }
+      ]
     },
     {
       id: 2,
@@ -292,7 +329,25 @@ const NgoDashboard: React.FC = () => {
       total_donations: 15000,
       last_donation_date: "2024-01-18T10:15:00Z",
       donation_reasons: ["Emergency Relief", "Food & Nutrition"],
-      causes_supported: 2
+      causes_supported: 2,
+      donation_history: [
+        { cause: "Flood Relief Fund", amount: 10000, date: "2024-01-18", reason: "Emergency Relief" },
+        { cause: "Daily Meals for Children", amount: 5000, date: "2024-01-10", reason: "Food & Nutrition" }
+      ]
+    },
+    {
+      id: 3,
+      name: "Michael Chen",
+      email: "michael.chen@email.com",
+      phone: "+1234567897",
+      total_donations: 30000,
+      last_donation_date: "2024-01-22T16:30:00Z",
+      donation_reasons: ["Education", "Women & Children"],
+      causes_supported: 4,
+      donation_history: [
+        { cause: "Girl Child Education", amount: 20000, date: "2024-01-22", reason: "Women & Children" },
+        { cause: "Library Development", amount: 10000, date: "2024-01-12", reason: "Education" }
+      ]
     }
   ]
 
@@ -415,19 +470,47 @@ const NgoDashboard: React.FC = () => {
             <Typography variant="body1" color="text.secondary">
               Welcome back, {user?.first_name}! Manage your NGO operations and track progress.
             </Typography>
+            {user?.role === 'NGO_ADMIN' && (
+              <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
+                Role: NGO Administrator
+              </Typography>
+            )}
+            {user?.role === 'NGO_STAFF' && (
+              <Typography variant="body2" color="info.main" sx={{ mt: 1 }}>
+                Role: NGO Staff Member
+              </Typography>
+            )}
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Preview />}
-            onClick={handleMicrositePreview}
-            sx={{ 
-              backgroundColor: '#7C3AED', 
-              '&:hover': { backgroundColor: '#6D28D9' },
-              minWidth: 200
-            }}
-          >
-            Preview Microsite
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<Language />}
+              onClick={() => setDomainManagementOpen(true)}
+              sx={{ 
+                borderColor: '#059669',
+                color: '#059669',
+                '&:hover': { 
+                  borderColor: '#047857',
+                  backgroundColor: '#ECFDF5'
+                },
+                minWidth: 180
+              }}
+            >
+              Domain Management
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Preview />}
+              onClick={handleMicrositePreview}
+              sx={{ 
+                backgroundColor: '#7C3AED', 
+                '&:hover': { backgroundColor: '#6D28D9' },
+                minWidth: 200
+              }}
+            >
+              Preview Microsite
+            </Button>
+          </Box>
         </Box>
       </Box>
 
@@ -577,12 +660,22 @@ const NgoDashboard: React.FC = () => {
                   <Typography variant="subtitle2" color="text.secondary">Branch</Typography>
                   <Typography variant="body2">{ngo.bank_details.branch}</Typography>
                 </Box>
-                <Chip 
-                  label="Verified" 
-                  color="success" 
-                  size="small" 
-                  icon={<CheckCircle />}
-                />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2 }}>
+                  <Chip 
+                    label="Verified" 
+                    color="success" 
+                    size="small" 
+                    icon={<CheckCircle />}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    Last updated: Jan 15, 2024
+                  </Typography>
+                </Box>
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Admin Approval Required:</strong> Bank details updates require validation by Platform Admin before being published to the frontend.
+                  </Typography>
+                </Alert>
               </CardContent>
             </Card>
           </Grid>
@@ -672,7 +765,7 @@ const NgoDashboard: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {vendors.map((vendor) => (
+                  {vendors.map((vendor: any) => (
                     <TableRow key={vendor.id}>
                       <TableCell>{vendor.name}</TableCell>
                       <TableCell>{vendor.category || 'General'}</TableCell>
@@ -715,7 +808,7 @@ const NgoDashboard: React.FC = () => {
           </Button>
         </Box>
         <Grid container spacing={2}>
-          {causes.map((cause) => (
+          {causes.map((cause: any) => (
             <Grid item xs={12} md={6} key={cause.id}>
               <Card>
                 <CardContent>
@@ -805,51 +898,72 @@ const NgoDashboard: React.FC = () => {
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Donor Details
+              Donor Details & Donation History
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              View detailed information about your donors and their donation patterns
             </Typography>
             <List>
               {mockDonors.map((donor) => (
                 <React.Fragment key={donor.id}>
-                  <ListItem>
+                  <ListItem sx={{ alignItems: 'flex-start' }}>
                     <ListItemAvatar>
-                      <Avatar>
+                      <Avatar sx={{ bgcolor: 'primary.main' }}>
                         {donor.name.split(' ').map(n => n[0]).join('')}
                       </Avatar>
                     </ListItemAvatar>
                     <ListItemText
-                      primary={donor.name}
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="h6">{donor.name}</Typography>
+                          <Chip 
+                            label={`₹${donor.total_donations.toLocaleString()}`} 
+                            color="success" 
+                            size="small"
+                          />
+                        </Box>
+                      }
                       secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
-                            {donor.email} • {donor.phone}
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            📧 {donor.email} • 📞 {donor.phone}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Total Donations: ₹{donor.total_donations.toLocaleString()} • 
-                            Causes Supported: {donor.causes_supported}
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            🎯 Causes Supported: {donor.causes_supported} • 
+                            📅 Last Donation: {new Date(donor.last_donation_date).toLocaleDateString()}
                           </Typography>
-                          <Box sx={{ mt: 1 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              Donation Reasons:
+                          
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                              💝 Donation Reasons:
                             </Typography>
-                            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                               {donor.donation_reasons.map((reason, index) => (
-                                <Chip key={index} label={reason} size="small" />
+                                <Chip key={index} label={reason} size="small" color="primary" />
                               ))}
                             </Box>
+                          </Box>
+
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            📊 Recent Donation History:
+                          </Typography>
+                          <Box sx={{ ml: 2 }}>
+                            {donor.donation_history.map((donation, index) => (
+                              <Box key={index} sx={{ mb: 1, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {donation.cause}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  ₹{donation.amount.toLocaleString()} • {donation.date} • Reason: {donation.reason}
+                                </Typography>
+                              </Box>
+                            ))}
                           </Box>
                         </Box>
                       }
                     />
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Last Donation
-                      </Typography>
-                      <Typography variant="body2">
-                        {new Date(donor.last_donation_date).toLocaleDateString()}
-                      </Typography>
-                    </Box>
                   </ListItem>
-                  <Divider />
+                  <Divider sx={{ my: 2 }} />
                 </React.Fragment>
               ))}
             </List>
@@ -972,7 +1086,7 @@ const NgoDashboard: React.FC = () => {
             startIcon={<PhotoCamera />}
             onClick={() => setPhotoUploadOpen(true)}
           >
-            Add Photo
+            Add New Photo
           </Button>
         </Box>
         <Grid container spacing={2}>
@@ -992,19 +1106,42 @@ const NgoDashboard: React.FC = () => {
                     width: '100%',
                     height: 200,
                     objectFit: 'cover',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      opacity: 0.8,
+                      transform: 'scale(1.02)',
+                      transition: 'all 0.3s ease'
+                    }
                   }}
                 />
                 <CardContent>
-                  <Typography variant="subtitle2">Photo {index + 1}</Typography>
-                  <Button size="small" color="error" sx={{ mt: 1 }}>
-                    Remove
-                  </Button>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle2">Photo {index + 1}</Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button size="small" color="primary" variant="outlined">
+                        Edit
+                      </Button>
+                      <Button size="small" color="error" variant="outlined">
+                        Remove
+                      </Button>
+                    </Box>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Uploaded: Jan {15 + index}, 2024
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>
           ))}
         </Grid>
+        <Alert severity="info" sx={{ mt: 3 }}>
+          <Typography variant="body2">
+            <strong>Photo Guidelines:</strong> Upload high-quality images (min 800x600px) that represent your NGO's work. 
+            Photos will be displayed on your microsite and public profile.
+          </Typography>
+        </Alert>
       </TabPanel>
+
 
       {/* Photo Upload Dialog */}
       <Dialog open={photoUploadOpen} onClose={() => setPhotoUploadOpen(false)} maxWidth="sm" fullWidth>
@@ -1374,6 +1511,89 @@ const NgoDashboard: React.FC = () => {
           <Button onClick={() => setContactPageOpen(false)}>Cancel</Button>
           <Button onClick={handleContactPageUpdate} variant="contained">
             Update Contact Page
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Domain Configuration Dialog */}
+      <Dialog open={domainManagementOpen} onClose={() => setDomainManagementOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Configure Custom Domain</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              <strong>Professional Setup:</strong> Configure your custom domain to eliminate redirects and provide a professional donor experience.
+            </Typography>
+          </Alert>
+
+          <TextField
+            label="Custom Domain"
+            placeholder="e.g., hopetrust.org or www.hopetrust.org"
+            value={domainData.custom_domain}
+            onChange={(e) => setDomainData({...domainData, custom_domain: e.target.value})}
+            fullWidth
+            sx={{ mb: 2 }}
+            helperText="Enter your domain without http:// or https://"
+          />
+
+          <TextField
+            label="Subdomain (Optional)"
+            placeholder="e.g., donate, support, or leave blank for root domain"
+            value={domainData.subdomain}
+            onChange={(e) => setDomainData({...domainData, subdomain: e.target.value})}
+            fullWidth
+            sx={{ mb: 2 }}
+            helperText="If you want a subdomain like donate.yourdomain.org"
+          />
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Domain Type</InputLabel>
+            <Select
+              value={domainData.custom_domain ? 'custom' : 'subdomain'}
+              onChange={(e) => {
+                if (e.target.value === 'subdomain') {
+                  setDomainData({...domainData, custom_domain: '', subdomain: ''})
+                }
+              }}
+            >
+              <MenuItem value="subdomain">Use Platform Subdomain (free)</MenuItem>
+              <MenuItem value="custom">Use Custom Domain (professional)</MenuItem>
+            </Select>
+          </FormControl>
+
+          {domainData.custom_domain && (
+            <Box sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1, mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                DNS Configuration Required:
+              </Typography>
+              <Typography variant="body2" sx={{ fontFamily: 'monospace', mb: 1 }}>
+                <strong>CNAME Record:</strong><br/>
+                Name: www<br/>
+                Value: microsites.yourplatform.com<br/>
+                TTL: 300
+              </Typography>
+              <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                <strong>A Record (for root domain):</strong><br/>
+                Name: @<br/>
+                Value: 192.168.1.100<br/>
+                TTL: 300
+              </Typography>
+            </Box>
+          )}
+
+          <Alert severity="warning">
+            <Typography variant="body2">
+              <strong>Important:</strong> After configuring DNS, it may take 24-48 hours for changes to propagate. 
+              Your domain will show as "Pending" until DNS is properly configured.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDomainManagementOpen(false)}>Cancel</Button>
+          <Button onClick={() => {
+            // TODO: Implement domain configuration API call
+            setDomainManagementOpen(false)
+          }} variant="contained">
+            Configure Domain
           </Button>
         </DialogActions>
       </Dialog>

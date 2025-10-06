@@ -69,31 +69,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const hasRole = (role: string, _tenantId?: number): boolean => {
     if (!user) return false
     
-    // For now, we'll implement basic role checking
-    // In a real implementation, you'd check against user memberships
-    const email = user.email.toLowerCase()
+    // Debug logging
+    console.log('Checking role:', role, 'User role:', user.role, 'Match:', user.role === role)
     
-    if (role === 'PLATFORM_ADMIN') {
-      return email.includes('admin@example.com')
-    }
-    
-    if (role === 'NGO_ADMIN') {
-      return email.includes('ngo') && email.includes('admin')
-    }
-    
-    if (role === 'NGO_STAFF') {
-      return email.includes('ngo') && email.includes('staff')
-    }
-    
-    if (role === 'VENDOR') {
-      return email.includes('vendor')
-    }
-    
-    if (role === 'DONOR') {
-      return email.includes('donor')
-    }
-    
-    return false
+    // Use the role field from user data instead of email parsing
+    return user.role === role
   }
 
   const getUserMembership = (tenantId: number) => {

@@ -454,6 +454,9 @@ pending_causes_storage = [
     }
 ]
 
+# Domain storage for custom domains
+domains_storage = []
+
 # NGO-Vendor associations (many-to-many with categories)
 ngo_vendor_associations = [
     {
@@ -1261,7 +1264,9 @@ async def get_current_user(request: Request):
                     "last_name": "Admin",
                     "role": "NGO_ADMIN",
                     "is_active": True,
-                    "created_at": ngo['created_at']
+                    "created_at": ngo['created_at'],
+                    "ngo_id": ngo['id'],
+                    "ngo_name": ngo['name']
                 }
             elif email == ngo_staff_email:
                 return {
@@ -1271,7 +1276,9 @@ async def get_current_user(request: Request):
                     "last_name": "Staff",
                     "role": "NGO_STAFF",
                     "is_active": True,
-                    "created_at": ngo['created_at']
+                    "created_at": ngo['created_at'],
+                    "ngo_id": ngo['id'],
+                    "ngo_name": ngo['name']
                 }
         
         # Check Vendor users
@@ -1328,9 +1335,50 @@ async def get_ngos():
         "Count": len(ngos_storage)
     }
 
+@app.get("/admin/causes")
+async def get_admin_causes(request: Request):
+    """Get causes based on user role"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] == "PLATFORM_ADMIN":
+        # Platform admin sees all causes
+        return {
+            "value": causes_storage + pending_causes_storage,
+            "Count": len(causes_storage) + len(pending_causes_storage)
+        }
+    elif current_user["role"] in ["NGO_ADMIN", "NGO_STAFF"]:
+        # NGO users see only their NGO's causes
+        user_ngo_id = current_user.get("ngo_id")
+        if user_ngo_id:
+            ngo_causes = []
+            # Get live causes
+            for cause in causes_storage:
+                if user_ngo_id in cause.get("ngo_ids", []):
+                    ngo_causes.append(cause)
+            # Get pending causes
+            for cause in pending_causes_storage:
+                if user_ngo_id in cause.get("ngo_ids", []):
+                    ngo_causes.append(cause)
+            
+            return {
+                "value": ngo_causes,
+                "Count": len(ngo_causes)
+            }
+        else:
+            return {
+                "value": [],
+                "Count": 0
+            }
+    else:
+        # Other roles see no causes
+        return {
+            "value": [],
+            "Count": 0
+        }
+
 @app.get("/public/causes")
 async def get_causes():
-    """Get all causes with proper category and NGO relationships"""
+    """Get all live causes with proper category and NGO relationships"""
     return {
         "value": causes_storage,
         "Count": len(causes_storage)
@@ -1804,6 +1852,259 @@ async def get_donor_details(donor_id: int):
             "payment_methods": donor["payment_methods"],
             "tax_exemption": donor["tax_exemption"]
         }
+    }
+
+# Domain Management Endpoints
+@app.get("/admin/domains")
+async def get_admin_domains(request: Request):
+    """Get domains for the current user's NGO"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] not in ["NGO_ADMIN", "NGO_STAFF"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    user_ngo_id = current_user.get("ngo_id")
+    if not user_ngo_id:
+        raise HTTPException(status_code=400, detail="NGO ID not found")
+    
+    # Mock domain data - in real implementation, this would come from database
+    domains = [
+        {
+            "id": 1,
+            "tenant_id": user_ngo_id,
+            "host": f"{current_user.get('ngo_name', 'hope-trust').lower().replace(' ', '-')}.org",
+            "status": "PENDING_DNS",
+            "is_primary": True,
+            "created_at": "2024-01-01T00:00:00Z",
+            "dns_instructions": {
+                "cname_record": {
+                    "name": "www",
+                    "value": "microsites.yourplatform.com",
+                    "ttl": 300
+                },
+                "a_record": {
+                    "name": "@",
+                    "value": "192.168.1.100",
+                    "ttl": 300
+                }
+            }
+        }
+    ]
+    
+    return {
+        "value": domains,
+        "Count": len(domains)
+    }
+
+@app.post("/admin/domains")
+async def create_domain(
+    request: Request,
+    host: str = Form(...),
+    is_primary: bool = Form(False)
+):
+    """Create a new domain for the NGO"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] not in ["NGO_ADMIN", "NGO_STAFF"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    user_ngo_id = current_user.get("ngo_id")
+    if not user_ngo_id:
+        raise HTTPException(status_code=400, detail="NGO ID not found")
+    
+    # Validate domain format
+    if not host or '.' not in host:
+        raise HTTPException(status_code=400, detail="Invalid domain format")
+    
+    # Clean domain name
+    clean_host = host.lower().strip().replace('http://', '').replace('https://', '').replace('www.', '')
+    
+    # Get NGO data
+    ngo = next((n for n in ngos_storage if n["id"] == user_ngo_id), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Create domain entry
+    new_domain = {
+        "id": len(domains_storage) + 1,
+        "tenant_id": user_ngo_id,
+        "host": clean_host,
+        "status": "PENDING_DNS",
+        "is_primary": is_primary,
+        "created_at": datetime.now().isoformat() + "Z",
+        "ngo_slug": ngo["slug"],
+        "dns_instructions": {
+            "cname_record": {
+                "name": "www",
+                "value": "microsites.yourplatform.com",
+                "ttl": 300
+            },
+            "a_record": {
+                "name": "@",
+                "value": "192.168.1.100",
+                "ttl": 300
+            }
+        }
+    }
+    
+    # Store domain (in real implementation, this would be in database)
+    domains_storage.append(new_domain)
+    
+    return {
+        "id": new_domain["id"],
+        "host": new_domain["host"],
+        "status": new_domain["status"],
+        "ngo_slug": new_domain["ngo_slug"],
+        "message": "Domain created successfully. Configure DNS and verify to activate.",
+        "next_steps": [
+            "1. Configure DNS records as shown in instructions",
+            "2. Wait 24-48 hours for DNS propagation",
+            "3. Click 'Verify Domain' to activate",
+            f"4. Your microsite will be available at: https://{clean_host}"
+        ]
+    }
+
+@app.post("/admin/domains/{domain_id}/verify")
+async def verify_domain(domain_id: int, request: Request):
+    """Verify domain DNS configuration and activate if valid"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] not in ["NGO_ADMIN", "NGO_STAFF"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find domain
+    domain = next((d for d in domains_storage if d["id"] == domain_id), None)
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    
+    # Check if user owns this domain
+    if domain["tenant_id"] != current_user.get("ngo_id"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Mock DNS verification - in real implementation, this would check actual DNS
+    import random
+    import socket
+    
+    try:
+        # Simulate DNS check
+        host = domain["host"]
+        
+        # For demo purposes, simulate different outcomes
+        if "localhost" in host or "127.0.0.1" in host:
+            # Local domains always work for demo
+            is_verified = True
+        else:
+            # For real domains, simulate DNS check
+            try:
+                socket.gethostbyname(host)
+                is_verified = random.choice([True, False])  # 50% chance for demo
+            except:
+                is_verified = False
+        
+        if is_verified:
+            # Update domain status
+            domain["status"] = "LIVE"
+            domain["verified_at"] = datetime.now().isoformat() + "Z"
+            
+            return {
+                "id": domain_id,
+                "host": domain["host"],
+                "status": "LIVE",
+                "verified_at": domain["verified_at"],
+                "message": "Domain verified successfully! Your microsite is now live.",
+                "microsite_url": f"https://{domain['host']}",
+                "next_steps": [
+                    "Your microsite is now accessible at your custom domain",
+                    "Share your domain with donors and supporters",
+                    "Update your marketing materials with the new domain",
+                    "Consider setting up SSL certificate for security"
+                ]
+            }
+        else:
+            return {
+                "id": domain_id,
+                "status": "PENDING_DNS",
+                "message": "DNS configuration not found. Please check your DNS settings and try again.",
+                "troubleshooting": [
+                    "Verify DNS records are correctly configured",
+                    "Wait 24-48 hours for DNS propagation",
+                    "Check with your domain provider",
+                    "Ensure CNAME/A records point to microsites.yourplatform.com"
+                ]
+            }
+            
+    except Exception as e:
+        return {
+            "id": domain_id,
+            "status": "ERROR",
+            "message": f"DNS verification failed: {str(e)}",
+            "troubleshooting": [
+                "Check domain format and spelling",
+                "Verify DNS records are configured",
+                "Contact support if issue persists"
+            ]
+        }
+
+@app.delete("/admin/domains/{domain_id}")
+async def delete_domain(domain_id: int, request: Request):
+    """Delete a domain"""
+    current_user = await get_current_user_from_request(request)
+    
+    if current_user["role"] not in ["NGO_ADMIN", "NGO_STAFF"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find and remove domain
+    domain_index = next((i for i, d in enumerate(domains_storage) if d["id"] == domain_id), None)
+    if domain_index is not None:
+        domains_storage.pop(domain_index)
+        return {
+            "id": domain_id,
+            "message": "Domain deleted successfully"
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Domain not found")
+
+# Domain routing endpoint - serves microsite for custom domains
+@app.get("/domain/{host}")
+async def serve_domain_microsite(host: str):
+    """Serve NGO microsite for custom domain"""
+    # Find domain in storage
+    domain = next((d for d in domains_storage if d["host"] == host), None)
+    
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain not found")
+    
+    if domain["status"] != "LIVE":
+        raise HTTPException(status_code=503, detail="Domain not active")
+    
+    # Get NGO data
+    ngo = next((n for n in ngos_storage if n["id"] == domain["tenant_id"]), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Return microsite data
+    return {
+        "domain": domain["host"],
+        "ngo": ngo,
+        "microsite_url": f"/microsite/{ngo['slug']}",
+        "status": "active",
+        "message": f"Microsite is live at {domain['host']}"
+    }
+
+# Health check for domain
+@app.get("/domain/{host}/health")
+async def domain_health_check(host: str):
+    """Health check for custom domain"""
+    domain = next((d for d in domains_storage if d["host"] == host), None)
+    
+    if not domain:
+        return {"status": "not_found", "message": "Domain not configured"}
+    
+    return {
+        "status": domain["status"],
+        "host": domain["host"],
+        "ngo_id": domain["tenant_id"],
+        "is_active": domain["status"] == "LIVE"
     }
 
 if __name__ == "__main__":
