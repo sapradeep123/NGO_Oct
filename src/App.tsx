@@ -28,12 +28,42 @@ import LoadingSpinner from './components/LoadingSpinner'
 // Create a client
 const queryClient = new QueryClient()
 
+// Default Route Component - redirects authenticated users to their dashboard
+const DefaultRoute: React.FC = () => {
+  const { isAuthenticated, user } = useAuth()
+  
+  // Debug logging
+  console.log('DefaultRoute - isAuthenticated:', isAuthenticated, 'user:', user)
+  
+  if (!isAuthenticated) {
+    return <MarketplaceHome />
+  }
+  
+  // Redirect authenticated users to their appropriate dashboard
+  if (user?.role === 'PLATFORM_ADMIN') {
+    console.log('Redirecting to admin-console')
+    return <Navigate to="/admin-console" replace />
+  } else if (user?.role === 'NGO_ADMIN' || user?.role === 'NGO_STAFF') {
+    console.log('Redirecting to ngo-dashboard')
+    return <Navigate to="/ngo-dashboard" replace />
+  } else if (user?.role === 'VENDOR') {
+    console.log('Redirecting to vendor-portal')
+    return <Navigate to="/vendor-portal" replace />
+  } else if (user?.role === 'DONOR') {
+    console.log('Redirecting to donor-dashboard')
+    return <Navigate to="/donor-dashboard" replace />
+  } else {
+    console.log('No matching role, showing marketplace')
+    return <MarketplaceHome />
+  }
+}
+
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRoles?: string[] }> = ({ 
   children, 
   requiredRoles = [] 
 }) => {
-  const { isAuthenticated, hasRole } = useAuth()
+  const { isAuthenticated, hasRole, user } = useAuth()
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
@@ -42,7 +72,18 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRoles?: stri
   if (requiredRoles.length > 0) {
     const hasRequiredRole = requiredRoles.some(role => hasRole(role))
     if (!hasRequiredRole) {
-      return <Navigate to="/" replace />
+      // Redirect to appropriate dashboard based on user role
+      if (user?.role === 'PLATFORM_ADMIN') {
+        return <Navigate to="/admin-console" replace />
+      } else if (user?.role === 'NGO_ADMIN' || user?.role === 'NGO_STAFF') {
+        return <Navigate to="/ngo-dashboard" replace />
+      } else if (user?.role === 'VENDOR') {
+        return <Navigate to="/vendor-portal" replace />
+      } else if (user?.role === 'DONOR') {
+        return <Navigate to="/donor-dashboard" replace />
+      } else {
+        return <Navigate to="/" replace />
+      }
     }
   }
   
@@ -79,8 +120,8 @@ const AppContent: React.FC = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/demo-login" element={<DemoLogin />} />
                 
-                {/* Marketplace routes */}
-                <Route path="/" element={<MarketplaceHome />} />
+                {/* Default route - redirect authenticated users to their dashboard */}
+                <Route path="/" element={<DefaultRoute />} />
                 <Route path="/ngo/:slug" element={<NgoPage />} />
                 <Route path="/cause/:id" element={<CauseDetail />} />
             
