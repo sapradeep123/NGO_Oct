@@ -150,7 +150,7 @@ const AdminConsole: React.FC = () => {
   })
 
   // Fetch pending causes
-  const { data: pendingCauses = [], isLoading: pendingCausesLoading } = useQuery({
+  const { data: pendingCauses = [] } = useQuery({
     queryKey: ['admin-pending-causes'],
     queryFn: () => apiClient.getPendingCauses(),
   })
@@ -1126,11 +1126,6 @@ const AdminConsole: React.FC = () => {
                       }
                     ]}
                     loading={allCausesLoading}
-                    sx={{ 
-                      '& .MuiDataGrid-root': { border: 'none' },
-                      '& .MuiDataGrid-cell': { borderBottom: '1px solid #f0f0f0' },
-                      '& .MuiDataGrid-columnHeaders': { backgroundColor: '#f8f9fa', fontWeight: 'bold' }
-                    }}
                   />
                 </CardContent>
               </Card>
