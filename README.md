@@ -11,11 +11,45 @@ A comprehensive platform for managing NGO donations, vendor relationships, and c
 - **Category Management**: Organized cause categorization system
 - **Account Reconciliation**: Comprehensive financial tracking and reporting
 
+### 🆕 New Interactive Features
+- **NGO Microsite**: Independent, branded websites for each NGO
+- **About Us Management**: NGO Admins can edit mission, vision, values, team
+- **Contact Page Management**: Manage contact info, departments, office hours
+- **Photo Gallery**: Upload and manage NGO photos with professional display
+- **End-to-End Donations**: Complete donation workflow with transaction tracking
+- **Real-time Data**: All microsite content updates from NGO Admin changes
+- **Professional Design**: Clean, NGO-branded experience with smooth navigation
+
 ### Key Workflows
 1. **Category Creation** → **NGO Registration** → **Vendor Association** → **Cause Creation** → **Admin Approval** → **Live Donations**
 2. **Multi-Category Support**: NGOs can work with different vendors for different categories
 3. **Approval Process**: All causes require admin approval before going live
 4. **Financial Tracking**: Complete donation tracking and vendor payment management
+
+## 🌐 NGO Microsite Features
+
+### For NGO Admins
+1. **Login**: Use NGO Admin credentials (e.g., `ngo.hope-trust.admin@example.com` / `Ngo@123`)
+2. **Dashboard Management**:
+   - **About Us Page**: Edit mission, vision, values, team members
+   - **Contact Page**: Manage phone, office hours, departments, social media
+   - **Photo Gallery**: Upload, view, and manage NGO photos
+   - **Preview Microsite**: See how the public microsite will look
+
+### For Public Users
+1. **Access**: Visit `http://localhost:5173/microsite/{ngo-slug}` (e.g., `/microsite/hope-trust`)
+2. **Features**:
+   - **Real Causes**: View only that NGO's causes (no other NGO data)
+   - **Donation Workflow**: Complete donation process with transaction tracking
+   - **Professional Design**: Clean, NGO-branded experience
+   - **Smooth Navigation**: About Us, Contact, Gallery sections
+   - **Responsive**: Works on all devices
+
+### Key URLs
+- **Main Platform**: `http://localhost:5173`
+- **Hope Trust Microsite**: `http://localhost:5173/microsite/hope-trust`
+- **Care Works Microsite**: `http://localhost:5173/microsite/care-works`
+- **Health First Microsite**: `http://localhost:5173/microsite/health-first`
 
 ## 🏗️ Architecture
 
