@@ -12,6 +12,7 @@ import { createNGOTheme, defaultTheme } from './theme'
 // Pages
 import MarketplaceHome from './pages/MarketplaceHome'
 import NgoPage from './pages/NgoPage'
+import NgoMicrosite from './pages/NgoMicrosite'
 import CauseDetail from './pages/CauseDetail'
 import DonorDashboard from './pages/DonorDashboard'
 import NgoDashboard from './pages/NgoDashboard'
@@ -50,7 +51,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRoles?: stri
 
 // Main App Content
 const AppContent: React.FC = () => {
-  const { mode, tenant, theme, isLoading } = useMode()
+  const { mode, theme, isLoading } = useMode()
   const { isLoading: authLoading } = useAuth()
 
   if (isLoading || authLoading) {
@@ -59,23 +60,29 @@ const AppContent: React.FC = () => {
 
   // Choose theme based on mode
   const currentTheme = mode === 'MICROSITE' && theme 
-    ? createNGOTheme(theme) 
+    ? createNGOTheme(theme as any) 
     : defaultTheme
 
   return (
-    <ThemeProvider theme={currentTheme}>
+    <ThemeProvider theme={currentTheme as any}>
       <CssBaseline />
       <Router>
-        <AppShell>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/demo-login" element={<DemoLogin />} />
-            
-            {/* Marketplace routes */}
-            <Route path="/" element={<MarketplaceHome />} />
-            <Route path="/ngo/:slug" element={<NgoPage />} />
-            <Route path="/cause/:id" element={<CauseDetail />} />
+        <Routes>
+          {/* Independent microsite route - no AppShell */}
+          <Route path="/microsite/:slug" element={<NgoMicrosite />} />
+          
+          {/* All other routes with AppShell */}
+          <Route path="/*" element={
+            <AppShell>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/demo-login" element={<DemoLogin />} />
+                
+                {/* Marketplace routes */}
+                <Route path="/" element={<MarketplaceHome />} />
+                <Route path="/ngo/:slug" element={<NgoPage />} />
+                <Route path="/cause/:id" element={<CauseDetail />} />
             
             {/* Protected routes */}
             <Route 
@@ -111,10 +118,12 @@ const AppContent: React.FC = () => {
               } 
             />
             
-            {/* Catch all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AppShell>
+                {/* Catch all */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </AppShell>
+          } />
+        </Routes>
       </Router>
     </ThemeProvider>
   )

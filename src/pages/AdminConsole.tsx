@@ -27,9 +27,6 @@ import {
   ListItemText,
   ListItemAvatar,
   Divider,
-  Snackbar,
-  Alert,
-  IconButton,
 } from '@mui/material'
 import { 
   Category, 
@@ -43,7 +40,6 @@ import {
   Person,
   LockReset,
   AdminPanelSettings,
-  Close as CloseIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -51,19 +47,6 @@ import DataTable from '../components/DataTable'
 
 const AdminConsole: React.FC = () => {
   const queryClient = useQueryClient()
-
-  // Helper function to show notifications
-  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
-    setNotification({
-      open: true,
-      message,
-      severity
-    })
-  }
-
-  const handleCloseNotification = () => {
-    setNotification(prev => ({ ...prev, open: false }))
-  }
   const [tabValue, setTabValue] = useState(0)
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
   const [createCauseOpen, setCreateCauseOpen] = useState(false)
@@ -132,13 +115,6 @@ const AdminConsole: React.FC = () => {
     role: '',
     ngo_id: '',
     vendor_id: ''
-  })
-
-  // Notification state
-  const [notification, setNotification] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   })
 
   // Fetch categories
@@ -326,10 +302,10 @@ const AdminConsole: React.FC = () => {
       setPasswordResetOpen(false)
       setNewPassword('')
       setSelectedUserId(null)
-      showNotification('Password reset successfully!', 'success')
+      alert('Password reset successfully!')
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.detail || 'Failed to reset password', 'error')
+      alert(error.response?.data?.detail || 'Failed to reset password')
     },
   })
 
@@ -342,10 +318,10 @@ const AdminConsole: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       setCreateUserOpen(false)
       setNewUser({ email: '', first_name: '', last_name: '', role: '', password: '', ngo_id: '', vendor_id: '' })
-      showNotification('User created successfully!', 'success')
+      alert('User created successfully!')
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.detail || 'Failed to create user', 'error')
+      alert(error.response?.data?.detail || 'Failed to create user')
     },
   })
 
@@ -359,10 +335,10 @@ const AdminConsole: React.FC = () => {
       setEditUserOpen(false)
       setEditingUser(null)
       setEditUserData({ email: '', first_name: '', last_name: '', role: '', ngo_id: '', vendor_id: '' })
-      showNotification('User updated successfully!', 'success')
+      alert('User updated successfully!')
     },
     onError: (error: any) => {
-      showNotification(error.response?.data?.detail || 'Failed to update user', 'error')
+      alert(error.response?.data?.detail || 'Failed to update user')
     },
   })
 
@@ -2407,34 +2383,6 @@ const AdminConsole: React.FC = () => {
           </DialogActions>
         </Dialog>
       </Container>
-
-      {/* Professional Notification Snackbar */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleCloseNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        sx={{ mt: 8 }}
-      >
-        <Alert
-          onClose={handleCloseNotification}
-          severity={notification.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
-          action={
-            <IconButton
-              size="small"
-              aria-label="close"
-              color="inherit"
-              onClick={handleCloseNotification}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          }
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

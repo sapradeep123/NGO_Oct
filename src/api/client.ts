@@ -10,10 +10,6 @@ export interface User {
   is_active: boolean
   created_at: string
   role?: string
-  ngo_name?: string
-  vendor_name?: string
-  ngo_id?: number
-  vendor_id?: number
 }
 
 export interface LoginRequest {
@@ -208,7 +204,7 @@ class ApiClient {
   }
 
   async getTenantBySlug(slug: string): Promise<Tenant> {
-    const response: AxiosResponse<Tenant> = await this.client.get(`/public/tenants/${slug}`)
+    const response: AxiosResponse<Tenant> = await this.client.get(`/tenant/${slug}`)
     return response.data
   }
 
@@ -455,10 +451,6 @@ class ApiClient {
   }
 
   // Detailed Vendor and NGO View API methods
-  async getVendorDetails(vendorId: number): Promise<any> {
-    const response = await this.client.get(`/admin/vendors/${vendorId}/details`)
-    return response.data
-  }
 
   async getNgoDetails(ngoId: number): Promise<any> {
     const response = await this.client.get(`/admin/ngos/${ngoId}/details`)
@@ -508,6 +500,51 @@ class ApiClient {
     const response = await this.client.put(`/admin/users/${userId}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+    return response.data
+  }
+
+  async uploadNgoPhoto(photo: File, ngoId: number): Promise<any> {
+    const formData = new FormData()
+    formData.append('photo', photo)
+    formData.append('ngo_id', ngoId.toString())
+    const response = await this.client.post('/admin/ngo/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  }
+
+  async getVendorDetails(vendorId: number): Promise<any> {
+    const response = await this.client.get(`/admin/vendors/${vendorId}`)
+    return response.data
+  }
+
+  async getTenantAboutPage(slug: string): Promise<any> {
+    const response = await this.client.get(`/tenant/${slug}/about`)
+    return response.data
+  }
+
+  async getTenantContactPage(slug: string): Promise<any> {
+    const response = await this.client.get(`/tenant/${slug}/contact`)
+    return response.data
+  }
+
+  async updateNgoAboutPage(ngoId: number, aboutData: any): Promise<any> {
+    const response = await this.client.put(`/admin/ngo/${ngoId}/about`, aboutData)
+    return response.data
+  }
+
+  async updateNgoContactPage(ngoId: number, contactData: any): Promise<any> {
+    const response = await this.client.put(`/admin/ngo/${ngoId}/contact`, contactData)
+    return response.data
+  }
+
+  async createDonation(donationData: any): Promise<any> {
+    const response = await this.client.post('/donations', donationData)
+    return response.data
+  }
+
+  async getDonationStatus(donationId: number): Promise<any> {
+    const response = await this.client.get(`/donations/${donationId}`)
     return response.data
   }
 

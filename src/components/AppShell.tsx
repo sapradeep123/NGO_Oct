@@ -300,8 +300,6 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {user.role?.replace('_', ' ')}
-                          {user.ngo_name && ` - ${user.ngo_name}`}
-                          {user.vendor_name && ` - ${user.vendor_name}`}
                         </Typography>
                       </Box>
                     </Box>

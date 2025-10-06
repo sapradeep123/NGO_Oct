@@ -1,5 +1,5 @@
 # In-memory storage for demo purposes
-from fastapi import FastAPI, Form, Request, HTTPException, Depends
+from fastapi import FastAPI, Form, Request, HTTPException, Depends, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from datetime import datetime
@@ -574,6 +574,9 @@ invoices_storage = [
     }
 ]
 
+# Donations storage for tracking donations
+donations_storage = []
+
 app = FastAPI(title="NGO Donations Platform", version="1.0.0")
 
 # CORS middleware
@@ -600,6 +603,172 @@ async def get_tenant_by_host(host: str = "localhost"):
         "tenant": None,
         "theme": None
     }
+
+@app.get("/tenant/{slug}")
+async def get_tenant_by_slug(slug: str):
+    """Get tenant (NGO) details by slug"""
+    # Find NGO by slug
+    ngo = next((n for n in ngos_storage if n["slug"] == slug), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    return ngo
+
+@app.get("/tenant/{slug}/about")
+async def get_tenant_about_page(slug: str):
+    """Get NGO About Us page content"""
+    ngo = next((n for n in ngos_storage if n["slug"] == slug), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Return About Us page content
+    return {
+        "ngo_id": ngo["id"],
+        "ngo_name": ngo["name"],
+        "content": ngo.get("about_content", f"Learn more about {ngo['name']} and our mission to make a difference in communities worldwide."),
+        "mission": ngo.get("mission", "To create positive change through verified, transparent operations."),
+        "vision": ngo.get("vision", "A world where every community has access to the support they need."),
+        "values": ngo.get("values", ["Transparency", "Impact", "Community", "Trust"]),
+        "team": ngo.get("team", [
+            {"name": "Dr. Sarah Johnson", "role": "Founder & CEO", "bio": "Passionate about community development"},
+            {"name": "Michael Chen", "role": "Program Director", "bio": "Expert in social impact programs"}
+        ]),
+        "updated_at": ngo.get("about_updated_at", ngo["created_at"])
+    }
+
+@app.get("/tenant/{slug}/contact")
+async def get_tenant_contact_page(slug: str):
+    """Get NGO Contact page content"""
+    ngo = next((n for n in ngos_storage if n["slug"] == slug), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    return {
+        "ngo_id": ngo["id"],
+        "ngo_name": ngo["name"],
+        "contact_info": {
+            "email": ngo["contact_email"],
+            "phone": ngo.get("phone", ""),
+            "address": ngo["address"],
+            "website": ngo.get("website_url", ""),
+            "office_hours": ngo.get("office_hours", "Monday - Friday: 9:00 AM - 6:00 PM")
+        },
+        "departments": ngo.get("departments", [
+            {"name": "General Inquiries", "email": ngo["contact_email"], "phone": ngo.get("phone", "")},
+            {"name": "Donations", "email": f"donations@{ngo['slug']}.org", "phone": ngo.get("phone", "")},
+            {"name": "Volunteer", "email": f"volunteer@{ngo['slug']}.org", "phone": ngo.get("phone", "")}
+        ]),
+        "social_media": ngo.get("social_media", {
+            "facebook": f"https://facebook.com/{ngo['slug']}",
+            "twitter": f"https://twitter.com/{ngo['slug']}",
+            "instagram": f"https://instagram.com/{ngo['slug']}"
+        }),
+        "updated_at": ngo.get("contact_updated_at", ngo["created_at"])
+    }
+
+@app.put("/admin/ngo/{ngo_id}/about")
+async def update_ngo_about_page(ngo_id: int, request: Request, about_data: dict):
+    """Update NGO About Us page content"""
+    current_user = await get_current_user_from_request(request)
+    
+    # Check if user has permission to update this NGO
+    if current_user["role"] not in ["PLATFORM_ADMIN", "NGO_ADMIN"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if current_user["role"] == "NGO_ADMIN" and current_user.get("ngo_id") != ngo_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find and update NGO
+    ngo = next((n for n in ngos_storage if n["id"] == ngo_id), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Update about page data
+    ngo["about_content"] = about_data.get("content", ngo.get("about_content", ""))
+    ngo["mission"] = about_data.get("mission", ngo.get("mission", ""))
+    ngo["vision"] = about_data.get("vision", ngo.get("vision", ""))
+    ngo["values"] = about_data.get("values", ngo.get("values", []))
+    ngo["team"] = about_data.get("team", ngo.get("team", []))
+    ngo["about_updated_at"] = datetime.now().isoformat() + "Z"
+    
+    return {"message": "About page updated successfully", "updated_at": ngo["about_updated_at"]}
+
+@app.put("/admin/ngo/{ngo_id}/contact")
+async def update_ngo_contact_page(ngo_id: int, request: Request, contact_data: dict):
+    """Update NGO Contact page content"""
+    current_user = await get_current_user_from_request(request)
+    
+    # Check if user has permission to update this NGO
+    if current_user["role"] not in ["PLATFORM_ADMIN", "NGO_ADMIN"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if current_user["role"] == "NGO_ADMIN" and current_user.get("ngo_id") != ngo_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find and update NGO
+    ngo = next((n for n in ngos_storage if n["id"] == ngo_id), None)
+    if not ngo:
+        raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Update contact page data
+    ngo["phone"] = contact_data.get("phone", ngo.get("phone", ""))
+    ngo["office_hours"] = contact_data.get("office_hours", ngo.get("office_hours", ""))
+    ngo["departments"] = contact_data.get("departments", ngo.get("departments", []))
+    ngo["social_media"] = contact_data.get("social_media", ngo.get("social_media", {}))
+    ngo["contact_updated_at"] = datetime.now().isoformat() + "Z"
+    
+    return {"message": "Contact page updated successfully", "updated_at": ngo["contact_updated_at"]}
+
+@app.post("/donations")
+async def create_donation(donation_data: dict):
+    """Create a new donation"""
+    # Validate required fields
+    required_fields = ["cause_id", "donor_name", "donor_email", "amount", "payment_method"]
+    for field in required_fields:
+        if field not in donation_data:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+    
+    # Generate donation ID
+    donation_id = len(donations_storage) + 1
+    
+    # Create donation record
+    donation = {
+        "id": donation_id,
+        "cause_id": donation_data["cause_id"],
+        "donor_name": donation_data["donor_name"],
+        "donor_email": donation_data["donor_email"],
+        "amount": donation_data["amount"],
+        "payment_method": donation_data["payment_method"],
+        "status": "PENDING",
+        "transaction_id": f"TXN_{donation_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        "created_at": datetime.now().isoformat() + "Z",
+        "updated_at": datetime.now().isoformat() + "Z"
+    }
+    
+    # Add to storage
+    donations_storage.append(donation)
+    
+    # Update cause raised amount
+    cause = next((c for c in causes_storage if c["id"] == donation_data["cause_id"]), None)
+    if cause:
+        cause["current_amount"] = (cause.get("current_amount", 0) or 0) + donation_data["amount"]
+        cause["donation_count"] = (cause.get("donation_count", 0) or 0) + 1
+    
+    return {
+        "success": True,
+        "donation_id": donation_id,
+        "transaction_id": donation["transaction_id"],
+        "message": "Donation created successfully. Payment processing..."
+    }
+
+@app.get("/donations/{donation_id}")
+async def get_donation_status(donation_id: int):
+    """Get donation status"""
+    donation = next((d for d in donations_storage if d["id"] == donation_id), None)
+    if not donation:
+        raise HTTPException(status_code=404, detail="Donation not found")
+    
+    return donation
 
 @app.get("/demo/users")
 async def get_demo_users():
@@ -1092,9 +1261,7 @@ async def get_current_user(request: Request):
                     "last_name": "Admin",
                     "role": "NGO_ADMIN",
                     "is_active": True,
-                    "created_at": ngo['created_at'],
-                    "ngo_name": ngo['name'],
-                    "ngo_id": ngo['id']
+                    "created_at": ngo['created_at']
                 }
             elif email == ngo_staff_email:
                 return {
@@ -1104,9 +1271,7 @@ async def get_current_user(request: Request):
                     "last_name": "Staff",
                     "role": "NGO_STAFF",
                     "is_active": True,
-                    "created_at": ngo['created_at'],
-                    "ngo_name": ngo['name'],
-                    "ngo_id": ngo['id']
+                    "created_at": ngo['created_at']
                 }
         
         # Check Vendor users
@@ -1120,9 +1285,7 @@ async def get_current_user(request: Request):
                     "last_name": "Vendor",
                     "role": "VENDOR",
                     "is_active": True,
-                    "created_at": vendor['created_at'],
-                    "vendor_name": vendor['name'],
-                    "vendor_id": vendor['id']
+                    "created_at": vendor['created_at']
                 }
         
         # Check Donor users
@@ -1385,8 +1548,55 @@ async def update_user(
         "message": f"User {email} updated successfully"
     }
 
-@app.get("/admin/ngos/{ngo_id}/vendors")
-async def get_ngo_vendors(ngo_id: int):
+@app.post("/admin/ngo/photo")
+async def upload_ngo_photo(
+    photo: UploadFile = File(...),
+    ngo_id: int = Form(...)
+):
+    """Upload photo for NGO gallery"""
+    # In a real application, this would save the file and return the URL
+    # For demo purposes, we'll return a mock URL
+    return {
+        "success": True,
+        "photo_url": f"https://picsum.photos/400/300?random={ngo_id}_{datetime.now().timestamp()}",
+        "message": "Photo uploaded successfully"
+    }
+
+@app.get("/admin/vendors/{vendor_id}")
+async def get_vendor_details(vendor_id: int, request: Request):
+    """Get detailed vendor information"""
+    current_user = await get_current_user_from_request(request)
+    
+    # Find the vendor
+    vendor = next((v for v in vendors_storage if v["id"] == vendor_id), None)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    # Check if user has access to this vendor
+    if current_user["role"] == "PLATFORM_ADMIN":
+        # Platform admin can see all vendors
+        pass
+    elif current_user["role"] in ["NGO_ADMIN", "NGO_STAFF"]:
+        # NGO users can only see vendors associated with their NGO
+        user_ngo_id = current_user.get("ngo_id")
+        if user_ngo_id:
+            # Check if vendor is associated with this NGO
+            is_associated = any(
+                a["ngo_id"] == user_ngo_id and a["vendor_id"] == vendor_id and a["status"] == "ACTIVE"
+                for a in ngo_vendor_associations
+            )
+            if not is_associated:
+                raise HTTPException(status_code=403, detail="Access denied")
+        else:
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user["role"] == "VENDOR":
+        # Vendor users can only see their own vendor info
+        if current_user.get("vendor_id") != vendor_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    else:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return vendor
     """Get all vendors associated with an NGO"""
     associations = [a for a in ngo_vendor_associations if a["ngo_id"] == ngo_id and a["status"] == "ACTIVE"]
     
