@@ -50,6 +50,7 @@ import DataTable from '../components/DataTable'
 const AdminConsole: React.FC = () => {
   const queryClient = useQueryClient()
   const [tabValue, setTabValue] = useState(0)
+  const [causeFilter, setCauseFilter] = useState<string>('all')
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false)
   const [createCauseOpen, setCreateCauseOpen] = useState(false)
   const [createNGOOpen, setCreateNGOOpen] = useState(false)
@@ -160,6 +161,14 @@ const AdminConsole: React.FC = () => {
     queryKey: ['admin-all-causes'],
     queryFn: () => apiClient.getAdminCauses(),
   })
+
+  // Filter causes based on selected filter
+  const filteredCauses = React.useMemo(() => {
+    if (causeFilter === 'all') return allCauses
+    if (causeFilter === 'active') return allCauses.filter(c => c.status === 'LIVE')
+    if (causeFilter === 'pending') return allCauses.filter(c => c.status === 'PENDING_APPROVAL')
+    return allCauses
+  }, [allCauses, causeFilter])
 
   // Fetch NGO-Vendor associations
   const { data: associations = [], isLoading: associationsLoading } = useQuery({
@@ -986,7 +995,7 @@ const AdminConsole: React.FC = () => {
                           <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
                             {allCauses.filter(c => c.status === 'LIVE').length}
                           </Typography>
-                          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
                             Active Causes
                           </Typography>
                         </Box>
@@ -1009,7 +1018,7 @@ const AdminConsole: React.FC = () => {
                           <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
                             {pendingCauses.length}
                           </Typography>
-                          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
                             Pending Approval
                           </Typography>
                         </Box>
@@ -1032,7 +1041,7 @@ const AdminConsole: React.FC = () => {
                           <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
                             {allCauses.length}
                           </Typography>
-                          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
                             Total Causes
                           </Typography>
                         </Box>
@@ -1055,7 +1064,7 @@ const AdminConsole: React.FC = () => {
                           <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 0.5 }}>
                             ₹{allCauses.reduce((sum, c) => sum + (c.current_amount || 0), 0).toLocaleString()}
                           </Typography>
-                          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
                             Total Raised
                           </Typography>
                         </Box>
@@ -1069,14 +1078,30 @@ const AdminConsole: React.FC = () => {
               {/* Causes Table */}
               <Card sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <CardContent sx={{ p: 0 }}>
-                  <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+                  <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                      All Causes ({allCauses.length})
+                      {causeFilter === 'all' ? 'All Causes' : 
+                       causeFilter === 'active' ? 'Active Causes' : 
+                       causeFilter === 'pending' ? 'Pending Causes' : 'All Causes'} ({filteredCauses.length})
                     </Typography>
+                    
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                      <InputLabel>Filter by Status</InputLabel>
+                      <Select
+                        value={causeFilter}
+                        label="Filter by Status"
+                        onChange={(e) => setCauseFilter(e.target.value)}
+                        sx={{ backgroundColor: 'white' }}
+                      >
+                        <MenuItem value="all">All Causes</MenuItem>
+                        <MenuItem value="active">Active Only</MenuItem>
+                        <MenuItem value="pending">Pending Only</MenuItem>
+                      </Select>
+                    </FormControl>
                   </Box>
                   
                   <DataTable
-                    rows={allCauses}
+                    rows={filteredCauses}
                     columns={[
                       { field: 'id', headerName: 'ID', width: 70, headerAlign: 'center', align: 'center' },
                       { field: 'title', headerName: 'Cause Title', width: 250, headerAlign: 'left' },
