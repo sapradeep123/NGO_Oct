@@ -153,6 +153,12 @@ const AdminConsole: React.FC = () => {
     queryFn: () => apiClient.getPendingCauses(),
   })
 
+  // Fetch all causes (active, inactive, pending) for Platform Admin
+  const { data: allCauses = [], isLoading: allCausesLoading } = useQuery({
+    queryKey: ['admin-all-causes'],
+    queryFn: () => apiClient.getAdminCauses(),
+  })
+
   // Fetch NGO-Vendor associations
   const { data: associations = [], isLoading: associationsLoading } = useQuery({
     queryKey: ['ngo-vendor-associations'],
@@ -519,7 +525,7 @@ const AdminConsole: React.FC = () => {
                       {pendingCauses.length}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Pending Causes
+                      Pending Approval
                     </Typography>
                   </Box>
                   <CheckCircle sx={{ fontSize: 40, opacity: 0.9 }} />
@@ -635,10 +641,10 @@ const AdminConsole: React.FC = () => {
               </Grid>
               <Grid item xs={12} md={3}>
                 <Box sx={{ textAlign: 'center', p: 2, backgroundColor: '#F3F4F6', borderRadius: 2 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#DC2626' }}>4</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#DC2626' }}>{allCauses.length}</Typography>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>Causes</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {pendingCauses.length} pending approval
+                    {allCauses.filter(c => c.status === 'LIVE').length} active, {pendingCauses.length} pending
                   </Typography>
                   <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                     Only approved causes visible to donors
@@ -950,7 +956,7 @@ const AdminConsole: React.FC = () => {
             </Box>
 
             <DataTable
-              rows={pendingCauses}
+              rows={allCauses}
               columns={[
                 { field: 'id', headerName: 'ID', width: 80 },
                 { field: 'title', headerName: 'Cause Title', width: 200 },
@@ -961,10 +967,13 @@ const AdminConsole: React.FC = () => {
                 { field: 'target_amount', headerName: 'Target Amount', width: 150, renderCell: (params: any) => 
                   `₹${params.value?.toLocaleString() || '0'}`
                 },
+                { field: 'current_amount', headerName: 'Raised', width: 120, renderCell: (params: any) => 
+                  `₹${(params.value || 0).toLocaleString()}`
+                },
                 { field: 'status', headerName: 'Status', width: 150, renderCell: (params: any) => (
                   <Chip 
                     label={params.value} 
-                    color={params.value === 'PENDING_APPROVAL' ? 'warning' : 'default'}
+                    color={params.value === 'LIVE' ? 'success' : params.value === 'PENDING_APPROVAL' ? 'warning' : 'default'}
                     size="small"
                   />
                 )},
@@ -977,21 +986,25 @@ const AdminConsole: React.FC = () => {
                   icon: <CheckCircle />,
                   label: 'Approve',
                   onClick: (params: any) => {
-                    approveCauseMutation.mutate(params.id)
+                    if (params.row.status === 'PENDING_APPROVAL') {
+                      approveCauseMutation.mutate(params.id)
+                    }
                   }
                 },
                 {
                   icon: <Cancel />,
                   label: 'Reject',
                   onClick: (params: any) => {
-                    const reason = prompt('Reason for rejection:')
-                    if (reason) {
-                      rejectCauseMutation.mutate({ causeId: params.id, reason })
+                    if (params.row.status === 'PENDING_APPROVAL') {
+                      const reason = prompt('Reason for rejection:')
+                      if (reason) {
+                        rejectCauseMutation.mutate({ causeId: params.id, reason })
+                      }
                     }
                   }
                 }
               ]}
-              loading={pendingCausesLoading}
+              loading={allCausesLoading}
             />
           </TabPanel>
 
