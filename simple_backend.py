@@ -399,13 +399,22 @@ donors_storage = [
         "email": "donor.arya@example.com",
         "phone": "+91-9876543210",
         "address": "123 Main Street, Mumbai, Maharashtra 400001",
-        "total_donations": 50000,
-        "donation_count": 12,
-        "last_donation_date": "2024-01-15T00:00:00Z",
+        "total_donations": 50500,
+        "donation_count": 13,
+        "last_donation_date": "2025-10-07T14:38:30Z",
         "preferred_categories": ["Education", "Healthcare"],
         "donation_history": [
             {
                 "id": 1,
+                "cause_id": 1,
+                "cause_title": "Daily Meals for Children",
+                "ngo_name": "Hope Trust",
+                "amount": 500,
+                "date": "2025-10-07T14:38:30Z",
+                "status": "COMPLETED"
+            },
+            {
+                "id": 2,
                 "cause_id": 1,
                 "cause_title": "Emergency Food Relief",
                 "ngo_name": "Hope Trust",
@@ -414,7 +423,7 @@ donors_storage = [
                 "status": "COMPLETED"
             },
             {
-                "id": 2,
+                "id": 3,
                 "cause_id": 2,
                 "cause_title": "School Supplies Drive",
                 "ngo_name": "Hope Trust",
@@ -527,15 +536,16 @@ causes_storage = [
         "title": "Daily Meals for Children",
         "description": "Providing nutritious meals to 500 children daily in rural schools",
         "target_amount": 150000,
-        "current_amount": 75000,
+        "current_amount": 75500,
         "status": "LIVE",
         "category_id": 1,
         "ngo_ids": [1],  # Hope Trust
         "category_name": "Food & Nutrition",
         "ngo_names": ["Hope Trust"],
+        "ngo_name": "Hope Trust",
         "image_url": "https://picsum.photos/400/300?random=1",
         "created_at": "2024-01-05T00:00:00Z",
-        "donation_count": 45
+        "donation_count": 46
     },
     {
         "id": 2,
@@ -548,6 +558,7 @@ causes_storage = [
         "ngo_ids": [2],  # Care Works
         "category_name": "Education",
         "ngo_names": ["Care Works"],
+        "ngo_name": "Care Works",
         "image_url": "https://picsum.photos/400/300?random=2",
         "created_at": "2024-01-08T00:00:00Z",
         "donation_count": 32
@@ -563,6 +574,7 @@ causes_storage = [
         "ngo_ids": [3],  # Health First Foundation
         "category_name": "Healthcare",
         "ngo_names": ["Health First Foundation"],
+        "ngo_name": "Health First Foundation",
         "image_url": "https://picsum.photos/400/300?random=3",
         "created_at": "2024-01-10T00:00:00Z",
         "donation_count": 28
@@ -850,7 +862,25 @@ invoices_storage = [
 ]
 
 # Donations storage for tracking donations
-donations_storage = []
+donations_storage = [
+    {
+        "id": 1,
+        "cause_id": 1,
+        "cause_title": "Daily Meals for Children",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "amount": 500,
+        "donor_name": "Arya Sharma",
+        "donor_email": "donor.arya@example.com",
+        "donor_phone": "+91-9876543210",
+        "status": "COMPLETED",
+        "created_at": "2024-01-15T00:00:00Z",
+        "completed_at": "2025-10-07T14:38:30Z",
+        "razorpay_order_id": "order_RQWnbKvimo7HMt",
+        "razorpay_payment_id": "pay_RQWnbKvimo7HMt",
+        "razorpay_signature": "verified_signature"
+    }
+]
 
 # Email and Website Settings Storage
 email_settings_storage = {

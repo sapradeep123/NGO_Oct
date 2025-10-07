@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:5173"
+    ALLOWED_ORIGINS_LIST: List[str] = []
     
     # External
     EXTERNAL_BASE_URL: str = ""
@@ -38,8 +39,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     class Config:
-        env_file = None
+        env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
         
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
