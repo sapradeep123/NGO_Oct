@@ -640,6 +640,8 @@ class ApiClient {
 
   // Donation API methods
   async initDonation(donationData: { cause_id: number; amount: number; donor_name: string; donor_email: string; donor_phone?: string }): Promise<any> {
+    console.log('API Client - initDonation called with:', donationData)
+    
     const formData = new FormData()
     formData.append('cause_id', donationData.cause_id.toString())
     formData.append('amount', donationData.amount.toString())
@@ -649,7 +651,13 @@ class ApiClient {
       formData.append('donor_phone', donationData.donor_phone)
     }
     
+    console.log('API Client - FormData contents:')
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`)
+    }
+    
     const response: AxiosResponse<any> = await this.client.post('/donations/init', formData)
+    console.log('API Client - Response received:', response.data)
     return response.data
   }
 

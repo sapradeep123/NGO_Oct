@@ -105,13 +105,27 @@ const CauseDetail: React.FC = () => {
         donor_phone: user?.phone || ''
       })
 
+      // Validate required fields
+      if (!cause?.id) {
+        throw new Error('Cause ID is missing')
+      }
+      if (!donationAmount || isNaN(parseInt(donationAmount))) {
+        throw new Error('Please enter a valid donation amount')
+      }
+      if (!user?.first_name || !user?.last_name) {
+        throw new Error('User name is missing')
+      }
+      if (!user?.email) {
+        throw new Error('User email is missing')
+      }
+
       // Initialize donation
       const donationData = await apiClient.initDonation({
         cause_id: cause.id,
         amount: parseInt(donationAmount),
-        donor_name: `${user?.first_name} ${user?.last_name}`,
-        donor_email: user?.email || '',
-        donor_phone: user?.phone || ''
+        donor_name: `${user.first_name} ${user.last_name}`,
+        donor_email: user.email,
+        donor_phone: user.phone || ''
       })
 
       console.log('Donation data received:', donationData)
@@ -194,12 +208,31 @@ const CauseDetail: React.FC = () => {
 
     } catch (err: any) {
       console.error('Donation error:', err)
+      console.error('Error response:', err.response?.data)
+      console.error('Error status:', err.response?.status)
+      
       let errorMessage = 'Donation failed'
       
-      if (err.response?.data?.detail) {
-        errorMessage = typeof err.response.data.detail === 'string' 
-          ? err.response.data.detail 
-          : JSON.stringify(err.response.data.detail)
+      if (err.response?.data) {
+        // Handle validation errors (array of validation errors)
+        if (Array.isArray(err.response.data)) {
+          const validationErrors = err.response.data
+            .map((error: any) => `${error.loc?.join('.')}: ${error.msg}`)
+            .join(', ')
+          errorMessage = `Validation error: ${validationErrors}`
+        }
+        // Handle single error message
+        else if (err.response.data.detail) {
+          errorMessage = typeof err.response.data.detail === 'string' 
+            ? err.response.data.detail 
+            : JSON.stringify(err.response.data.detail)
+        }
+        // Handle other error formats
+        else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data
+        } else {
+          errorMessage = JSON.stringify(err.response.data)
+        }
       } else if (err.message) {
         errorMessage = typeof err.message === 'string' 
           ? err.message 
