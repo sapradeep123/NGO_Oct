@@ -479,7 +479,24 @@ const AdminConsole: React.FC = () => {
       alert('Email sent successfully!')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Failed to send email')
+      console.error('Email sending error:', error)
+      let errorMessage = 'Failed to send email'
+      
+      if (error?.response?.data?.detail) {
+        errorMessage = typeof error.response.data.detail === 'string' 
+          ? error.response.data.detail 
+          : JSON.stringify(error.response.data.detail)
+      } else if (error?.message) {
+        errorMessage = typeof error.message === 'string' 
+          ? error.message 
+          : JSON.stringify(error.message)
+      } else if (error) {
+        errorMessage = typeof error === 'string' 
+          ? error 
+          : JSON.stringify(error)
+      }
+      
+      alert(errorMessage)
     }
   })
 

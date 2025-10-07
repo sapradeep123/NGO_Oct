@@ -151,6 +151,9 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
     try:
         settings = email_settings_storage
         
+        print(f"Attempting to send email to: {to_email}")
+        print(f"Using SMTP settings: {settings['smtp_host']}:{settings['smtp_port']}")
+        
         # Create message
         msg = MIMEMultipart('alternative')
         msg['From'] = f"{settings['from_name']} <{settings['from_email']}>"
@@ -162,17 +165,23 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
         msg.attach(html_part)
         
         # Connect to SMTP server
+        print("Connecting to SMTP server...")
         server = smtplib.SMTP_SSL(settings['smtp_host'], settings['smtp_port'])
+        
+        print("Logging in to SMTP server...")
         server.login(settings['smtp_username'], settings['smtp_password'])
         
         # Send email
+        print("Sending email...")
         text = msg.as_string()
         server.sendmail(settings['from_email'], to_email, text)
         server.quit()
         
+        print("Email sent successfully!")
         return True
     except Exception as e:
         print(f"Email sending failed: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
         return False
 
 # Helper function to get current user from request
