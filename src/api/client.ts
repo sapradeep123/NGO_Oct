@@ -696,6 +696,69 @@ class ApiClient {
     const response = await this.client.get(`/donor/donations/cause/${causeId}`)
     return response.data
   }
+
+  // Email and Website Settings API methods
+  async getEmailSettings(): Promise<any> {
+    const response = await this.client.get('/admin/email-settings')
+    return response.data
+  }
+
+  async updateEmailSettings(emailData: any): Promise<any> {
+    const formData = new FormData()
+    Object.keys(emailData).forEach(key => {
+      if (emailData[key] !== null && emailData[key] !== undefined) {
+        formData.append(key, emailData[key].toString())
+      }
+    })
+    const response = await this.client.put('/admin/email-settings', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  }
+
+  async getWebsiteSettings(): Promise<any> {
+    const response = await this.client.get('/admin/website-settings')
+    return response.data
+  }
+
+  async updateWebsiteSettings(websiteData: any): Promise<any> {
+    const formData = new FormData()
+    Object.keys(websiteData).forEach(key => {
+      if (websiteData[key] !== null && websiteData[key] !== undefined) {
+        formData.append(key, websiteData[key].toString())
+      }
+    })
+    const response = await this.client.put('/admin/website-settings', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  }
+
+  async sendPasswordResetEmail(userEmail: string): Promise<any> {
+    const formData = new FormData()
+    formData.append('user_email', userEmail)
+    const response = await this.client.post('/admin/send-password-reset', formData)
+    return response.data
+  }
+
+  async sendWelcomeEmail(userEmail: string, userRole: string): Promise<any> {
+    const formData = new FormData()
+    formData.append('user_email', userEmail)
+    formData.append('user_role', userRole)
+    const response = await this.client.post('/admin/send-welcome-email', formData)
+    return response.data
+  }
+
+  async sendDonationInvoice(donorEmail: string, donorName: string, causeTitle: string, amount: number, transactionId: string): Promise<any> {
+    const formData = new FormData()
+    formData.append('donor_email', donorEmail)
+    formData.append('donor_name', donorName)
+    formData.append('cause_title', causeTitle)
+    formData.append('amount', amount.toString())
+    formData.append('transaction_id', transactionId)
+    const response = await this.client.post('/admin/send-donation-invoice', formData)
+    return response.data
+  }
 }
 
 export const apiClient = new ApiClient()

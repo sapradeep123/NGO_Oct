@@ -7,6 +7,173 @@ import razorpay
 import json
 import hashlib
 import hmac
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
+# Email Template Functions
+def get_password_reset_template(user_name: str, reset_link: str) -> str:
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Password Reset - NGO Platform</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #2563EB, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .button {{ display: inline-block; background: #2563EB; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🔐 Password Reset Request</h1>
+                <p>NGO Platform</p>
+            </div>
+            <div class="content">
+                <h2>Hello {user_name},</h2>
+                <p>We received a request to reset your password for your NGO Platform account.</p>
+                <p>Click the button below to reset your password:</p>
+                <a href="{reset_link}" class="button">Reset Password</a>
+                <p>If you didn't request this password reset, please ignore this email.</p>
+                <p>This link will expire in 24 hours for security reasons.</p>
+            </div>
+            <div class="footer">
+                <p>© 2024 NGO Platform. All rights reserved.</p>
+                <p>This email was sent from info@bheeshmaa.in</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def get_welcome_template(user_name: str, user_role: str) -> str:
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to NGO Platform</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #2563EB, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .button {{ display: inline-block; background: #2563EB; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🎉 Welcome to NGO Platform!</h1>
+                <p>Making a Difference Together</p>
+            </div>
+            <div class="content">
+                <h2>Hello {user_name},</h2>
+                <p>Welcome to the NGO Platform! We're excited to have you join our community of changemakers.</p>
+                <p>Your account has been created with the role: <strong>{user_role.replace('_', ' ')}</strong></p>
+                <p>You can now:</p>
+                <ul>
+                    <li>Access your personalized dashboard</li>
+                    <li>Manage your profile and settings</li>
+                    <li>Connect with NGOs and causes</li>
+                    <li>Make a positive impact in your community</li>
+                </ul>
+                <a href="http://localhost:5173/login" class="button">Get Started</a>
+                <p>If you have any questions, feel free to contact our support team.</p>
+            </div>
+            <div class="footer">
+                <p>© 2024 NGO Platform. All rights reserved.</p>
+                <p>Contact us: info@bheeshmaa.in</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def get_donation_invoice_template(donor_name: str, cause_title: str, amount: float, transaction_id: str, date: str) -> str:
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Donation Receipt - NGO Platform</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #2563EB, #059669); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .content {{ background: #f8fafc; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .receipt {{ background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2563EB; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #666; font-size: 14px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>💰 Donation Receipt</h1>
+                <p>Thank you for your generosity!</p>
+            </div>
+            <div class="content">
+                <h2>Hello {donor_name},</h2>
+                <p>Thank you for your generous donation! Your contribution is making a real difference.</p>
+                <div class="receipt">
+                    <h3>Donation Details</h3>
+                    <p><strong>Cause:</strong> {cause_title}</p>
+                    <p><strong>Amount:</strong> ₹{amount:,.2f}</p>
+                    <p><strong>Transaction ID:</strong> {transaction_id}</p>
+                    <p><strong>Date:</strong> {date}</p>
+                    <p><strong>Status:</strong> Completed</p>
+                </div>
+                <p>Your donation is tax-deductible. Please keep this receipt for your records.</p>
+                <p>Thank you for supporting our mission to create positive change!</p>
+            </div>
+            <div class="footer">
+                <p>© 2024 NGO Platform. All rights reserved.</p>
+                <p>Contact us: info@bheeshmaa.in</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email using SMTP settings"""
+    try:
+        settings = email_settings_storage
+        
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = f"{settings['from_name']} <{settings['from_email']}>"
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        
+        # Add HTML content
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Connect to SMTP server
+        server = smtplib.SMTP_SSL(settings['smtp_host'], settings['smtp_port'])
+        server.login(settings['smtp_username'], settings['smtp_password'])
+        
+        # Send email
+        text = msg.as_string()
+        server.sendmail(settings['from_email'], to_email, text)
+        server.quit()
+        
+        return True
+    except Exception as e:
+        print(f"Email sending failed: {str(e)}")
+        return False
 
 # Helper function to get current user from request
 async def get_current_user_from_request(request: Request):
@@ -675,6 +842,30 @@ invoices_storage = [
 
 # Donations storage for tracking donations
 donations_storage = []
+
+# Email and Website Settings Storage
+email_settings_storage = {
+    "smtp_host": "smtp.hostinger.com",
+    "smtp_port": 465,
+    "smtp_username": "info@bheeshmaa.in",
+    "smtp_password": "Info@2024",
+    "smtp_encryption": "SSL",
+    "from_email": "info@bheeshmaa.in",
+    "from_name": "NGO Platform"
+}
+
+website_settings_storage = {
+    "app_name": "NGO Platform",
+    "app_title": "NGO Donations Platform",
+    "logo_url": "/logo.png",
+    "favicon_url": "/favicon.ico",
+    "primary_color": "#2563EB",
+    "secondary_color": "#059669",
+    "footer_text": "Making a Difference Together",
+    "contact_email": "info@bheeshmaa.in",
+    "contact_phone": "+91-9876543210",
+    "address": "123 NGO Street, City, State, Country"
+}
 
 app = FastAPI(title="NGO Donations Platform", version="1.0.0")
 
@@ -2801,6 +2992,165 @@ async def get_donor_donations_by_cause(cause_id: int, request: Request):
         "total_donations": len(cause_donations),
         "total_amount": sum(d["amount"] for d in cause_donations)
     }
+
+# Email and Website Settings Endpoints
+@app.get("/admin/email-settings")
+async def get_email_settings(request: Request):
+    """Get email settings"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    return email_settings_storage
+
+@app.put("/admin/email-settings")
+async def update_email_settings(
+    smtp_host: str = Form(...),
+    smtp_port: int = Form(...),
+    smtp_username: str = Form(...),
+    smtp_password: str = Form(...),
+    smtp_encryption: str = Form(...),
+    from_email: str = Form(...),
+    from_name: str = Form(...),
+    request: Request = None
+):
+    """Update email settings"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    email_settings_storage.update({
+        "smtp_host": smtp_host,
+        "smtp_port": smtp_port,
+        "smtp_username": smtp_username,
+        "smtp_password": smtp_password,
+        "smtp_encryption": smtp_encryption,
+        "from_email": from_email,
+        "from_name": from_name
+    })
+    
+    return {"message": "Email settings updated successfully"}
+
+@app.get("/admin/website-settings")
+async def get_website_settings(request: Request):
+    """Get website settings"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    return website_settings_storage
+
+@app.put("/admin/website-settings")
+async def update_website_settings(
+    app_name: str = Form(...),
+    app_title: str = Form(...),
+    logo_url: str = Form(...),
+    favicon_url: str = Form(...),
+    primary_color: str = Form(...),
+    secondary_color: str = Form(...),
+    footer_text: str = Form(...),
+    contact_email: str = Form(...),
+    contact_phone: str = Form(...),
+    address: str = Form(...),
+    request: Request = None
+):
+    """Update website settings"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    website_settings_storage.update({
+        "app_name": app_name,
+        "app_title": app_title,
+        "logo_url": logo_url,
+        "favicon_url": favicon_url,
+        "primary_color": primary_color,
+        "secondary_color": secondary_color,
+        "footer_text": footer_text,
+        "contact_email": contact_email,
+        "contact_phone": contact_phone,
+        "address": address
+    })
+    
+    return {"message": "Website settings updated successfully"}
+
+@app.post("/admin/send-password-reset")
+async def send_password_reset_email(
+    user_email: str = Form(...),
+    request: Request = None
+):
+    """Send password reset email"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Generate reset link (in real app, this would be a secure token)
+    reset_link = f"http://localhost:5173/reset-password?email={user_email}&token=demo_token"
+    
+    # Get user name (simplified for demo)
+    user_name = user_email.split('@')[0].replace('.', ' ').title()
+    
+    # Generate email content
+    html_content = get_password_reset_template(user_name, reset_link)
+    
+    # Send email
+    success = send_email(user_email, "Password Reset Request - NGO Platform", html_content)
+    
+    if success:
+        return {"message": f"Password reset email sent to {user_email}"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send email")
+
+@app.post("/admin/send-welcome-email")
+async def send_welcome_email(
+    user_email: str = Form(...),
+    user_role: str = Form(...),
+    request: Request = None
+):
+    """Send welcome email"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get user name (simplified for demo)
+    user_name = user_email.split('@')[0].replace('.', ' ').title()
+    
+    # Generate email content
+    html_content = get_welcome_template(user_name, user_role)
+    
+    # Send email
+    success = send_email(user_email, "Welcome to NGO Platform!", html_content)
+    
+    if success:
+        return {"message": f"Welcome email sent to {user_email}"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send email")
+
+@app.post("/admin/send-donation-invoice")
+async def send_donation_invoice(
+    donor_email: str = Form(...),
+    donor_name: str = Form(...),
+    cause_title: str = Form(...),
+    amount: float = Form(...),
+    transaction_id: str = Form(...),
+    request: Request = None
+):
+    """Send donation invoice email"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Generate email content
+    date = datetime.now().strftime("%B %d, %Y")
+    html_content = get_donation_invoice_template(donor_name, cause_title, amount, transaction_id, date)
+    
+    # Send email
+    success = send_email(donor_email, f"Donation Receipt - {cause_title}", html_content)
+    
+    if success:
+        return {"message": f"Donation invoice sent to {donor_email}"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send email")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

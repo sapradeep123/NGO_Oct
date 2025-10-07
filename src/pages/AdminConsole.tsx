@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Container,
   Typography,
@@ -42,6 +42,9 @@ import {
   AdminPanelSettings,
   Pending,
   TrendingUp,
+  Email,
+  Settings,
+  Payment,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -120,6 +123,43 @@ const AdminConsole: React.FC = () => {
     vendor_id: ''
   })
 
+  // Email settings state
+  const [emailSettings, setEmailSettings] = useState({
+    smtp_host: '',
+    smtp_port: 465,
+    smtp_username: '',
+    smtp_password: '',
+    smtp_encryption: 'SSL',
+    from_email: '',
+    from_name: ''
+  })
+
+  // Website settings state
+  const [websiteSettings, setWebsiteSettings] = useState({
+    app_name: '',
+    app_title: '',
+    logo_url: '',
+    favicon_url: '',
+    primary_color: '',
+    secondary_color: '',
+    footer_text: '',
+    contact_email: '',
+    contact_phone: '',
+    address: ''
+  })
+
+  // Email sending state
+  const [sendEmailOpen, setSendEmailOpen] = useState(false)
+  const [emailType, setEmailType] = useState('')
+  const [emailData, setEmailData] = useState({
+    user_email: '',
+    user_role: '',
+    donor_name: '',
+    cause_title: '',
+    amount: '',
+    transaction_id: ''
+  })
+
   // Fetch categories
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -181,6 +221,31 @@ const AdminConsole: React.FC = () => {
     queryKey: ['admin-users'],
     queryFn: () => apiClient.getAdminUsers(),
   })
+
+  // Fetch email settings
+  const { data: emailSettingsData } = useQuery({
+    queryKey: ['emailSettings'],
+    queryFn: () => apiClient.getEmailSettings(),
+  })
+
+  // Fetch website settings
+  const { data: websiteSettingsData } = useQuery({
+    queryKey: ['websiteSettings'],
+    queryFn: () => apiClient.getWebsiteSettings(),
+  })
+
+  // Update settings when data is fetched
+  useEffect(() => {
+    if (emailSettingsData) {
+      setEmailSettings(emailSettingsData)
+    }
+  }, [emailSettingsData])
+
+  useEffect(() => {
+    if (websiteSettingsData) {
+      setWebsiteSettings(websiteSettingsData)
+    }
+  }, [websiteSettingsData])
 
   // Fetch vendor details
   const { data: vendorDetails, isLoading: vendorDetailsLoading } = useQuery({
@@ -359,6 +424,65 @@ const AdminConsole: React.FC = () => {
     },
   })
 
+  // Update email settings mutation
+  const updateEmailSettingsMutation = useMutation({
+    mutationFn: (data: any) => apiClient.updateEmailSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emailSettings'] })
+      alert('Email settings updated successfully!')
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.detail || 'Failed to update email settings')
+    }
+  })
+
+  // Update website settings mutation
+  const updateWebsiteSettingsMutation = useMutation({
+    mutationFn: (data: any) => apiClient.updateWebsiteSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['websiteSettings'] })
+      alert('Website settings updated successfully!')
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.detail || 'Failed to update website settings')
+    }
+  })
+
+  // Send email mutation
+  const sendEmailMutation = useMutation({
+    mutationFn: (data: any) => {
+      if (emailType === 'password-reset') {
+        return apiClient.sendPasswordResetEmail(data.user_email)
+      } else if (emailType === 'welcome') {
+        return apiClient.sendWelcomeEmail(data.user_email, data.user_role)
+      } else if (emailType === 'donation-invoice') {
+        return apiClient.sendDonationInvoice(
+          data.user_email,
+          data.donor_name,
+          data.cause_title,
+          parseFloat(data.amount),
+          data.transaction_id
+        )
+      }
+      return Promise.resolve()
+    },
+    onSuccess: () => {
+      setSendEmailOpen(false)
+      setEmailData({
+        user_email: '',
+        user_role: '',
+        donor_name: '',
+        cause_title: '',
+        amount: '',
+        transaction_id: ''
+      })
+      alert('Email sent successfully!')
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.detail || 'Failed to send email')
+    }
+  })
+
   const handleCreateCategory = () => {
     createCategoryMutation.mutate(newCategory)
   }
@@ -432,6 +556,23 @@ const AdminConsole: React.FC = () => {
     if (editingUser) {
       editUserMutation.mutate({ userId: editingUser.id, userData: editUserData })
     }
+  }
+
+  const handleUpdateEmailSettings = () => {
+    updateEmailSettingsMutation.mutate(emailSettings)
+  }
+
+  const handleUpdateWebsiteSettings = () => {
+    updateWebsiteSettingsMutation.mutate(websiteSettings)
+  }
+
+  const handleSendEmail = () => {
+    sendEmailMutation.mutate(emailData)
+  }
+
+  const handleOpenSendEmail = (type: string) => {
+    setEmailType(type)
+    setSendEmailOpen(true)
   }
 
   // Helper function to get available vendors for selected NGO and category
@@ -948,6 +1089,9 @@ const AdminConsole: React.FC = () => {
               <Tab label="User Management" icon={<AdminPanelSettings />} iconPosition="start" />
               <Tab label="Categories" icon={<Category />} iconPosition="start" />
               <Tab label="NGO-Vendor Associations" icon={<Verified />} iconPosition="start" />
+              <Tab label="Email Settings" icon={<Email />} iconPosition="start" />
+              <Tab label="Website Settings" icon={<Settings />} iconPosition="start" />
+              <Tab label="Payment Settings" icon={<Payment />} iconPosition="start" />
             </Tabs>
           </Box>
 
@@ -1466,6 +1610,225 @@ const AdminConsole: React.FC = () => {
               ]}
               loading={associationsLoading}
             />
+          </TabPanel>
+
+          {/* Email Settings Tab */}
+          <TabPanel value={tabValue} index={7}>
+            <Box sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Email Settings
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="SMTP Host"
+                    value={emailSettings.smtp_host}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtp_host: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="SMTP Port"
+                    type="number"
+                    value={emailSettings.smtp_port}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtp_port: parseInt(e.target.value) })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="SMTP Username"
+                    value={emailSettings.smtp_username}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtp_username: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="SMTP Password"
+                    type="password"
+                    value={emailSettings.smtp_password}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, smtp_password: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>SMTP Encryption</InputLabel>
+                    <Select
+                      value={emailSettings.smtp_encryption}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, smtp_encryption: e.target.value })}
+                    >
+                      <MenuItem value="SSL">SSL</MenuItem>
+                      <MenuItem value="TLS">TLS</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="From Email"
+                    value={emailSettings.from_email}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, from_email: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="From Name"
+                    value={emailSettings.from_name}
+                    onChange={(e) => setEmailSettings({ ...emailSettings, from_name: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleUpdateEmailSettings}
+                  disabled={updateEmailSettingsMutation.isPending}
+                >
+                  {updateEmailSettingsMutation.isPending ? <CircularProgress size={20} /> : 'Save Settings'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleOpenSendEmail('password-reset')}
+                >
+                  Test Password Reset Email
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleOpenSendEmail('welcome')}
+                >
+                  Test Welcome Email
+                </Button>
+              </Box>
+            </Box>
+          </TabPanel>
+
+          {/* Website Settings Tab */}
+          <TabPanel value={tabValue} index={8}>
+            <Box sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Website Settings
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="App Name"
+                    value={websiteSettings.app_name}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, app_name: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="App Title"
+                    value={websiteSettings.app_title}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, app_title: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Logo URL"
+                    value={websiteSettings.logo_url}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, logo_url: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Favicon URL"
+                    value={websiteSettings.favicon_url}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, favicon_url: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Primary Color"
+                    type="color"
+                    value={websiteSettings.primary_color}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, primary_color: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Secondary Color"
+                    type="color"
+                    value={websiteSettings.secondary_color}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, secondary_color: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Footer Text"
+                    value={websiteSettings.footer_text}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, footer_text: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Contact Email"
+                    value={websiteSettings.contact_email}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, contact_email: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Contact Phone"
+                    value={websiteSettings.contact_phone}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, contact_phone: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Address"
+                    multiline
+                    rows={3}
+                    value={websiteSettings.address}
+                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, address: e.target.value })}
+                    sx={{ mb: 2 }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleUpdateWebsiteSettings}
+                  disabled={updateWebsiteSettingsMutation.isPending}
+                >
+                  {updateWebsiteSettingsMutation.isPending ? <CircularProgress size={20} /> : 'Save Settings'}
+                </Button>
+              </Box>
+            </Box>
+          </TabPanel>
+
+          {/* Payment Settings Tab */}
+          <TabPanel value={tabValue} index={9}>
+            <Box sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Payment Settings
+              </Typography>
+              
+              <Card sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  Razorpay Configuration
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Current Razorpay settings are configured in the backend. Test credentials are already set up.
+                </Typography>
+                
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handleOpenSendEmail('donation-invoice')}
+                  >
+                    Test Donation Invoice Email
+                  </Button>
+                </Box>
+              </Card>
+            </Box>
           </TabPanel>
         </Card>
 
@@ -2541,6 +2904,98 @@ const AdminConsole: React.FC = () => {
               disabled={passwordResetMutation.isPending || !newPassword || newPassword.length < 8}
             >
               {passwordResetMutation.isPending ? <CircularProgress size={20} /> : 'Reset Password'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Send Email Dialog */}
+        <Dialog open={sendEmailOpen} onClose={() => setSendEmailOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>
+            {emailType === 'password-reset' && 'Send Password Reset Email'}
+            {emailType === 'welcome' && 'Send Welcome Email'}
+            {emailType === 'donation-invoice' && 'Send Donation Invoice'}
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Email Address"
+                  value={emailData.user_email}
+                  onChange={(e) => setEmailData({ ...emailData, user_email: e.target.value })}
+                  sx={{ mb: 2 }}
+                />
+              </Grid>
+              
+              {emailType === 'welcome' && (
+                <Grid item xs={12}>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>User Role</InputLabel>
+                    <Select
+                      value={emailData.user_role}
+                      onChange={(e) => setEmailData({ ...emailData, user_role: e.target.value })}
+                    >
+                      <MenuItem value="DONOR">Donor</MenuItem>
+                      <MenuItem value="NGO_ADMIN">NGO Admin</MenuItem>
+                      <MenuItem value="NGO_STAFF">NGO Staff</MenuItem>
+                      <MenuItem value="VENDOR">Vendor</MenuItem>
+                      <MenuItem value="PLATFORM_ADMIN">Platform Admin</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              )}
+              
+              {emailType === 'donation-invoice' && (
+                <>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Donor Name"
+                      value={emailData.donor_name}
+                      onChange={(e) => setEmailData({ ...emailData, donor_name: e.target.value })}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Cause Title"
+                      value={emailData.cause_title}
+                      onChange={(e) => setEmailData({ ...emailData, cause_title: e.target.value })}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Amount"
+                      type="number"
+                      value={emailData.amount}
+                      onChange={(e) => setEmailData({ ...emailData, amount: e.target.value })}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Transaction ID"
+                      value={emailData.transaction_id}
+                      onChange={(e) => setEmailData({ ...emailData, transaction_id: e.target.value })}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                </>
+              )}
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSendEmailOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleSendEmail} 
+              variant="contained"
+              disabled={sendEmailMutation.isPending || !emailData.user_email}
+            >
+              {sendEmailMutation.isPending ? <CircularProgress size={20} /> : 'Send Email'}
             </Button>
           </DialogActions>
         </Dialog>
