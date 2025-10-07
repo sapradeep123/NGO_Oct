@@ -27,6 +27,8 @@ import {
   ListItemText,
   ListItemAvatar,
   Divider,
+  Snackbar,
+  Alert,
 } from '@mui/material'
 import { 
   Category, 
@@ -158,6 +160,13 @@ const AdminConsole: React.FC = () => {
     cause_title: '',
     amount: '',
     transaction_id: ''
+  })
+
+  // Professional notification state
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   })
 
   // Fetch categories
@@ -340,8 +349,7 @@ const AdminConsole: React.FC = () => {
     },
     onError: (error: any) => {
       console.error('Error creating association:', error)
-      // You can add a toast notification here if you have one
-      alert(error.response?.data?.detail || 'Failed to create association')
+      showNotification(error.response?.data?.detail || 'Failed to create association', 'error')
     },
   })
 
@@ -384,10 +392,10 @@ const AdminConsole: React.FC = () => {
       setPasswordResetOpen(false)
       setNewPassword('')
       setSelectedUserId(null)
-      alert('Password reset successfully!')
+      showNotification('Password reset successfully!', 'success')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Failed to reset password')
+      showNotification(error.response?.data?.detail || 'Failed to reset password', 'error')
     },
   })
 
@@ -400,10 +408,10 @@ const AdminConsole: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       setCreateUserOpen(false)
       setNewUser({ email: '', first_name: '', last_name: '', role: '', password: '', ngo_id: '', vendor_id: '' })
-      alert('User created successfully!')
+      showNotification('User created successfully!', 'success')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Failed to create user')
+      showNotification(error.response?.data?.detail || 'Failed to create user', 'error')
     },
   })
 
@@ -417,10 +425,10 @@ const AdminConsole: React.FC = () => {
       setEditUserOpen(false)
       setEditingUser(null)
       setEditUserData({ email: '', first_name: '', last_name: '', role: '', ngo_id: '', vendor_id: '' })
-      alert('User updated successfully!')
+      showNotification('User updated successfully!', 'success')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Failed to update user')
+      showNotification(error.response?.data?.detail || 'Failed to update user', 'error')
     },
   })
 
@@ -429,10 +437,10 @@ const AdminConsole: React.FC = () => {
     mutationFn: (data: any) => apiClient.updateEmailSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['emailSettings'] })
-      alert('Email settings updated successfully!')
+      showNotification('Email settings updated successfully!', 'success')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Failed to update email settings')
+      showNotification(error.response?.data?.detail || 'Failed to update email settings', 'error')
     }
   })
 
@@ -441,10 +449,10 @@ const AdminConsole: React.FC = () => {
     mutationFn: (data: any) => apiClient.updateWebsiteSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['websiteSettings'] })
-      alert('Website settings updated successfully!')
+      showNotification('Website settings updated successfully!', 'success')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.detail || 'Failed to update website settings')
+      showNotification(error.response?.data?.detail || 'Failed to update website settings', 'error')
     }
   })
 
@@ -476,7 +484,7 @@ const AdminConsole: React.FC = () => {
         amount: '',
         transaction_id: ''
       })
-      alert('Email sent successfully!')
+      showNotification('Email sent successfully!', 'success')
     },
     onError: (error: any) => {
       console.error('Email sending error:', error)
@@ -496,7 +504,7 @@ const AdminConsole: React.FC = () => {
           : JSON.stringify(error)
       }
       
-      alert(errorMessage)
+      showNotification(errorMessage, 'error')
     }
   })
 
@@ -590,6 +598,18 @@ const AdminConsole: React.FC = () => {
   const handleOpenSendEmail = (type: string) => {
     setEmailType(type)
     setSendEmailOpen(true)
+  }
+
+  const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    })
+  }
+
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }))
   }
 
   // Helper function to get available vendors for selected NGO and category
@@ -3016,6 +3036,29 @@ const AdminConsole: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Professional Notification Snackbar */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={6000}
+          onClose={handleCloseNotification}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={handleCloseNotification} 
+            severity={notification.severity}
+            variant="filled"
+            sx={{ 
+              width: '100%',
+              '& .MuiAlert-message': {
+                fontSize: '14px',
+                fontWeight: 500
+              }
+            }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
       </Container>
     </Box>
   )
