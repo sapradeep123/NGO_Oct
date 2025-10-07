@@ -223,24 +223,24 @@ const MarketplaceHome: React.FC = () => {
                 color: 'white',
                 boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
               }}>
-                <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 2 }}>
+                <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 2, color: 'white' }}>
                   ₹2,50,000+
                 </Typography>
-                <Typography variant="h6" sx={{ mb: 4, opacity: 0.9 }}>
+                <Typography variant="h6" sx={{ mb: 4, color: 'white' }}>
                   Raised This Month
                 </Typography>
                 <Grid container spacing={3}>
                   <Grid item xs={4}>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>150+</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Active Causes</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>150+</Typography>
+                    <Typography variant="body2" sx={{ color: 'white' }}>Active Causes</Typography>
                   </Grid>
                   <Grid item xs={4}>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>25+</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Verified NGOs</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>25+</Typography>
+                    <Typography variant="body2" sx={{ color: 'white' }}>Verified NGOs</Typography>
                   </Grid>
                   <Grid item xs={4}>
-                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>500+</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Supporters</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, color: 'white' }}>500+</Typography>
+                    <Typography variant="body2" sx={{ color: 'white' }}>Supporters</Typography>
                   </Grid>
                 </Grid>
               </Box>
