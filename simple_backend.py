@@ -679,8 +679,8 @@ donations_storage = []
 app = FastAPI(title="NGO Donations Platform", version="1.0.0")
 
 # Razorpay Configuration (Test Credentials)
-RAZORPAY_KEY_ID = "rzp_test_1DP5mmOlF5G5ag"  # Replace with your test key
-RAZORPAY_KEY_SECRET = "thisisjustademokey"  # Replace with your test secret
+RAZORPAY_KEY_ID = "rzp_test_XwigzkMzvBU19Q"  # Your test key
+RAZORPAY_KEY_SECRET = "vENWqX0XZE8RNzC4R6R5hxzr"  # Your test secret
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 # CORS middleware
@@ -2718,6 +2718,89 @@ async def update_ticket(ticket_id: int, request: Request, update_data: dict):
         ticket["resolved_at"] = datetime.now().isoformat() + "Z"
     
     return {"id": ticket_id, "message": "Ticket updated successfully"}
+
+@app.get("/donor/donations")
+async def get_donor_donations(request: Request):
+    """Get donation history for the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get donor's donation history
+    donor_email = current_user["email"]
+    donor = next((d for d in donors_storage if d["email"] == donor_email), None)
+    if not donor: raise HTTPException(status_code=404, detail="Donor not found")
+    
+    # Get all donations for this donor
+    donor_donations = [d for d in donations_storage if d["donor_email"] == donor_email]
+    
+    # Sort by date (most recent first)
+    donor_donations.sort(key=lambda x: x["created_at"], reverse=True)
+    
+    return {
+        "donations": donor_donations,
+        "total_donations": len(donor_donations),
+        "total_amount": sum(d["amount"] for d in donor_donations)
+    }
+
+@app.get("/donor/donations/{ngo_slug}")
+async def get_donor_donations_by_ngo(ngo_slug: str, request: Request):
+    """Get donation history for a specific NGO by the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find the NGO
+    ngo = next((n for n in ngos_storage if n["slug"] == ngo_slug), None)
+    if not ngo: raise HTTPException(status_code=404, detail="NGO not found")
+    
+    # Get donations for this NGO by this donor
+    donor_email = current_user["email"]
+    ngo_donations = [
+        d for d in donations_storage 
+        if d["donor_email"] == donor_email and d["ngo_slug"] == ngo_slug
+    ]
+    
+    # Sort by date (most recent first)
+    ngo_donations.sort(key=lambda x: x["created_at"], reverse=True)
+    
+    return {
+        "ngo_name": ngo["name"],
+        "ngo_slug": ngo_slug,
+        "donations": ngo_donations,
+        "total_donations": len(ngo_donations),
+        "total_amount": sum(d["amount"] for d in ngo_donations)
+    }
+
+@app.get("/donor/donations/cause/{cause_id}")
+async def get_donor_donations_by_cause(cause_id: int, request: Request):
+    """Get donation history for a specific cause by the current donor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Find the cause
+    cause = next((c for c in causes_storage if c["id"] == cause_id), None)
+    if not cause: raise HTTPException(status_code=404, detail="Cause not found")
+    
+    # Get donations for this cause by this donor
+    donor_email = current_user["email"]
+    cause_donations = [
+        d for d in donations_storage 
+        if d["donor_email"] == donor_email and d["cause_id"] == cause_id
+    ]
+    
+    # Sort by date (most recent first)
+    cause_donations.sort(key=lambda x: x["created_at"], reverse=True)
+    
+    return {
+        "cause_id": cause_id,
+        "cause_title": cause["title"],
+        "ngo_name": cause["ngo_name"],
+        "donations": cause_donations,
+        "total_donations": len(cause_donations),
+        "total_amount": sum(d["amount"] for d in cause_donations)
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

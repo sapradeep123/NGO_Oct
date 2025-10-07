@@ -606,10 +606,6 @@ class ApiClient {
   }
 
   // Donor-specific API methods
-  async getDonorDonations(): Promise<any[]> {
-    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/donor/donations')
-    return response.data.value || []
-  }
 
   async getCauseDeliveryStatus(causeId: number): Promise<any> {
     const response: AxiosResponse<any> = await this.client.get(`/donor/causes/${causeId}/status`)
@@ -673,7 +669,23 @@ class ApiClient {
   }
 
   async getDonationReceipt(donationId: number): Promise<any> {
-    const response: AxiosResponse<any> = await this.client.get(`/donations/${donationId}/receipt`)
+    const response: AxiosResponse<any> = await this.client.get(`/donations/${donationId}/receipt`)                                                              
+    return response.data
+  }
+
+  // Donation History API methods
+  async getDonorDonations(): Promise<any> {
+    const response = await this.client.get('/donor/donations')
+    return response.data
+  }
+
+  async getDonorDonationsByNgo(ngoSlug: string): Promise<any> {
+    const response = await this.client.get(`/donor/donations/${ngoSlug}`)
+    return response.data
+  }
+
+  async getDonorDonationsByCause(causeId: number): Promise<any> {
+    const response = await this.client.get(`/donor/donations/cause/${causeId}`)
     return response.data
   }
 }

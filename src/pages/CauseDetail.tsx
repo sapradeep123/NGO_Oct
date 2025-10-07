@@ -17,10 +17,25 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material'
-import { VolunteerActivism, AccountBalance, AttachMoney, CheckCircle } from '@mui/icons-material'
+import { 
+  VolunteerActivism, 
+  AccountBalance, 
+  CheckCircle,
+  History,
+  ExpandMore,
+  Receipt,
+  CurrencyRupee
+} from '@mui/icons-material'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
 import { apiClient } from '../api/client'
 
@@ -35,6 +50,7 @@ const CauseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isAuthenticated, user } = useAuth()
+  const queryClient = useQueryClient()
   const [donationAmount, setDonationAmount] = useState('500')
   const [isDonating, setIsDonating] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +78,13 @@ const CauseDetail: React.FC = () => {
     enabled: !!id,
   })
 
+  // Fetch donor's donation history for this cause (only if user is a donor)
+  const { data: donationHistory, isLoading: historyLoading } = useQuery({
+    queryKey: ['donation-history', id, user?.email],
+    queryFn: () => apiClient.getDonorDonationsByCause(parseInt(id!)),
+    enabled: !!id && !!user && user.role === 'DONOR',
+  })
+
   const handleDonate = async () => {
     if (!cause || !donationAmount) return
 
@@ -74,6 +97,14 @@ const CauseDetail: React.FC = () => {
     setError('')
 
     try {
+      console.log('Initializing donation...', {
+        cause_id: cause.id,
+        amount: parseInt(donationAmount),
+        donor_name: `${user?.first_name} ${user?.last_name}`,
+        donor_email: user?.email || '',
+        donor_phone: user?.phone || ''
+      })
+
       // Initialize donation
       const donationData = await apiClient.initDonation({
         cause_id: cause.id,
@@ -82,6 +113,13 @@ const CauseDetail: React.FC = () => {
         donor_email: user?.email || '',
         donor_phone: user?.phone || ''
       })
+
+      console.log('Donation data received:', donationData)
+
+      // Check if Razorpay is loaded
+      if (!window.Razorpay) {
+        throw new Error('Razorpay SDK not loaded. Please refresh the page and try again.')
+      }
 
       // Configure Razorpay options
       const options = {
@@ -94,6 +132,7 @@ const CauseDetail: React.FC = () => {
         prefill: donationData.prefill,
         notes: donationData.notes,
         handler: async function (response: any) {
+          console.log('Payment successful:', response)
           try {
             // Verify payment
             const verification = await apiClient.verifyDonation({
@@ -102,28 +141,48 @@ const CauseDetail: React.FC = () => {
               razorpay_signature: response.razorpay_signature
             })
 
+            console.log('Payment verification:', verification)
+
             if (verification.success) {
-              setDonationSuccess(verification)
+              setDonationSuccess({
+                ...verification,
+                amount: donationData.amount,
+                cause_title: cause.title,
+                donor_name: `${user?.first_name} ${user?.last_name}`,
+                transaction_id: response.razorpay_payment_id,
+                date: new Date().toISOString()
+              })
               setSuccessDialogOpen(true)
               setDonationAmount('500') // Reset to default
+              setIsDonating(false)
+              
+              // Invalidate queries to refresh data
+              queryClient.invalidateQueries({ queryKey: ['cause', id] })
+              queryClient.invalidateQueries({ queryKey: ['donation-history', id, user?.email] })
             }
           } catch (err: any) {
+            console.error('Payment verification error:', err)
             setError('Payment verification failed. Please contact support.')
+            setIsDonating(false)
           }
         },
         modal: {
           ondismiss: function() {
+            console.log('Payment modal dismissed')
             setIsDonating(false)
           }
         }
       }
+
+      console.log('Opening Razorpay with options:', options)
 
       // Open Razorpay checkout
       const razorpay = new window.Razorpay(options)
       razorpay.open()
 
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Donation failed')
+      console.error('Donation error:', err)
+      setError(err.response?.data?.detail || err.message || 'Donation failed')
       setIsDonating(false)
     }
   }
@@ -230,6 +289,82 @@ const CauseDetail: React.FC = () => {
                 </Box>
               </CardContent>
             </Card>
+
+            {/* Donation History Section - Only for Donors */}
+            {user?.role === 'DONOR' && (
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <History color="primary" />
+                    <Typography variant="h6">
+                      Your Donation History
+                    </Typography>
+                  </Box>
+                  
+                  {historyLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : donationHistory && donationHistory.donations && donationHistory.donations.length > 0 ? (
+                    <Box>
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          You have donated {donationHistory.total_donations} time{donationHistory.total_donations > 1 ? 's' : ''} to this cause
+                        </Typography>
+                        <Typography variant="h6" color="primary">
+                          Total: ₹{donationHistory.total_amount?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                      
+                      <Accordion>
+                        <AccordionSummary expandIcon={<ExpandMore />}>
+                          <Typography variant="subtitle1">
+                            View All Donations ({donationHistory.donations.length})
+                          </Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <List dense>
+                            {donationHistory.donations.map((donation: any, index: number) => (
+                              <ListItem key={donation.id || index} sx={{ px: 0 }}>
+                                <ListItemIcon>
+                                  <Receipt color="primary" />
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                        ₹{donation.amount?.toLocaleString()}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        {new Date(donation.created_at).toLocaleDateString()}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Box>
+                                      <Typography variant="body2" color="text.secondary">
+                                        Transaction ID: {donation.transaction_id}
+                                      </Typography>
+                                      <Typography variant="body2" color="text.secondary">
+                                        Status: {donation.status}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                />
+                              </ListItem>
+                            ))}
+                          </List>
+                        </AccordionDetails>
+                      </Accordion>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      You haven't donated to this cause yet. Be the first to make a difference!
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </Grid>
 
           {/* Right Column - Donation Form */}
@@ -273,7 +408,7 @@ const CauseDetail: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <AttachMoney sx={{ mr: 1 }} />
+                      <CurrencyRupee sx={{ mr: 1 }} />
                       Donate Now
                     </>
                   )}
@@ -297,13 +432,32 @@ const CauseDetail: React.FC = () => {
           </DialogTitle>
           <DialogContent>
             <Typography variant="body1" paragraph>
-              Thank you for your generous donation of ₹{donationAmount} to {cause.title}!
+              Thank you for your generous donation of ₹{donationSuccess?.amount?.toLocaleString()} to {donationSuccess?.cause_title}!
             </Typography>
+            
+            <Box sx={{ backgroundColor: '#f5f5f5', p: 2, borderRadius: 1, mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Transaction Details:
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Transaction ID:</strong> {donationSuccess?.transaction_id}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Payment ID:</strong> {donationSuccess?.payment_id}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Amount:</strong> ₹{donationSuccess?.amount?.toLocaleString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Date & Time:</strong> {donationSuccess?.date ? new Date(donationSuccess.date).toLocaleString() : 'N/A'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Status:</strong> Completed
+              </Typography>
+            </Box>
+            
             <Typography variant="body2" color="text.secondary">
-              Payment ID: {donationSuccess?.payment_id}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              You will receive a receipt via email shortly.
+              You will receive a receipt via email shortly. This transaction will appear in your donation history.
             </Typography>
           </DialogContent>
           <DialogActions>

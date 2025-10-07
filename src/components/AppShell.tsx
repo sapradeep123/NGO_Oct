@@ -318,6 +318,40 @@ const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       open={Boolean(anchorEl)}
                       onClose={handleProfileMenuClose}
                     >
+                      {/* Role-specific dashboard links */}
+                      {hasRole('DONOR') && (
+                        <MenuItem onClick={() => { navigate('/donor-dashboard'); handleProfileMenuClose(); }}>
+                          <ListItemIcon>
+                            <Dashboard fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText>My Dashboard</ListItemText>
+                        </MenuItem>
+                      )}
+                      {hasRole('NGO_ADMIN') || hasRole('NGO_STAFF') ? (
+                        <MenuItem onClick={() => { navigate('/ngo-dashboard'); handleProfileMenuClose(); }}>
+                          <ListItemIcon>
+                            <Dashboard fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText>NGO Dashboard</ListItemText>
+                        </MenuItem>
+                      ) : null}
+                      {hasRole('VENDOR') && (
+                        <MenuItem onClick={() => { navigate('/vendor-portal'); handleProfileMenuClose(); }}>
+                          <ListItemIcon>
+                            <Store fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText>Vendor Portal</ListItemText>
+                        </MenuItem>
+                      )}
+                      {hasRole('PLATFORM_ADMIN') && (
+                        <MenuItem onClick={() => { navigate('/admin-console'); handleProfileMenuClose(); }}>
+                          <ListItemIcon>
+                            <AdminPanelSettings fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText>Admin Console</ListItemText>
+                        </MenuItem>
+                      )}
+                      
                       <MenuItem onClick={handleLogout}>
                         <ListItemIcon>
                           <ExitToApp fontSize="small" />
