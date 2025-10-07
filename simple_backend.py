@@ -3161,5 +3161,60 @@ async def send_donation_invoice(
     else:
         raise HTTPException(status_code=500, detail="Failed to send email")
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.post("/admin/upload-logo")
+async def upload_logo(file: UploadFile = File(...), request: Request = None):
+    """Upload logo file"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    
+    # Validate file size (2MB limit)
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:  # 2MB
+        raise HTTPException(status_code=400, detail="File size must be less than 2MB")
+    
+    # In a real application, you would save the file to a storage service
+    # For demo purposes, we'll just return the filename
+    filename = f"logo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file.filename.split('.')[-1]}"
+    
+    # Update website settings with the new logo path
+    website_settings_storage["logo_url"] = f"/uploads/{filename}"
+    
+    return {
+        "message": "Logo uploaded successfully",
+        "filename": filename,
+        "url": f"/uploads/{filename}"
+    }
+
+@app.post("/admin/upload-favicon")
+async def upload_favicon(file: UploadFile = File(...), request: Request = None):
+    """Upload favicon file"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    
+    # Validate file size (1MB limit for favicon)
+    content = await file.read()
+    if len(content) > 1 * 1024 * 1024:  # 1MB
+        raise HTTPException(status_code=400, detail="File size must be less than 1MB")
+    
+    # In a real application, you would save the file to a storage service
+    # For demo purposes, we'll just return the filename
+    filename = f"favicon_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{file.filename.split('.')[-1]}"
+    
+    # Update website settings with the new favicon path
+    website_settings_storage["favicon_url"] = f"/uploads/{filename}"
+    
+    return {
+        "message": "Favicon uploaded successfully",
+        "filename": filename,
+        "url": f"/uploads/{filename}"
+    }

@@ -47,6 +47,8 @@ import {
   Email,
   Settings,
   Payment,
+  CloudUpload,
+  Image,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '../api/client'
@@ -168,6 +170,12 @@ const AdminConsole: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   })
+
+  // File upload state
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [faviconFile, setFaviconFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string>('')
+  const [faviconPreview, setFaviconPreview] = useState<string>('')
 
   // Fetch categories
   const { data: categories = [] } = useQuery({
@@ -508,6 +516,29 @@ const AdminConsole: React.FC = () => {
     }
   })
 
+  // File upload mutations
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => apiClient.uploadLogo(file),
+    onSuccess: (data) => {
+      setWebsiteSettings(prev => ({ ...prev, logo_url: data.url }))
+      showNotification('Logo uploaded successfully!', 'success')
+    },
+    onError: (error: any) => {
+      showNotification(error.response?.data?.detail || 'Failed to upload logo', 'error')
+    }
+  })
+
+  const uploadFaviconMutation = useMutation({
+    mutationFn: (file: File) => apiClient.uploadFavicon(file),
+    onSuccess: (data) => {
+      setWebsiteSettings(prev => ({ ...prev, favicon_url: data.url }))
+      showNotification('Favicon uploaded successfully!', 'success')
+    },
+    onError: (error: any) => {
+      showNotification(error.response?.data?.detail || 'Failed to upload favicon', 'error')
+    }
+  })
+
   const handleCreateCategory = () => {
     createCategoryMutation.mutate(newCategory)
   }
@@ -610,6 +641,48 @@ const AdminConsole: React.FC = () => {
 
   const handleCloseNotification = () => {
     setNotification(prev => ({ ...prev, open: false }))
+  }
+
+  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file size (2MB limit)
+      if (file.size > 2 * 1024 * 1024) {
+        showNotification('Logo file size must be less than 2MB', 'error')
+        return
+      }
+      
+      setLogoFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+      
+      // Upload the file
+      uploadLogoMutation.mutate(file)
+    }
+  }
+
+  const handleFaviconUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file size (1MB limit)
+      if (file.size > 1 * 1024 * 1024) {
+        showNotification('Favicon file size must be less than 1MB', 'error')
+        return
+      }
+      
+      setFaviconFile(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setFaviconPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+      
+      // Upload the file
+      uploadFaviconMutation.mutate(file)
+    }
   }
 
   // Helper function to get available vendors for selected NGO and category
@@ -1764,20 +1837,86 @@ const AdminConsole: React.FC = () => {
                     onChange={(e) => setWebsiteSettings({ ...websiteSettings, app_title: e.target.value })}
                     sx={{ mb: 2 }}
                   />
-                  <TextField
-                    fullWidth
-                    label="Logo URL"
-                    value={websiteSettings.logo_url}
-                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, logo_url: e.target.value })}
-                    sx={{ mb: 2 }}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Favicon URL"
-                    value={websiteSettings.favicon_url}
-                    onChange={(e) => setWebsiteSettings({ ...websiteSettings, favicon_url: e.target.value })}
-                    sx={{ mb: 2 }}
-                  />
+                  
+                  {/* Logo Upload */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
+                      Logo Upload
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      {logoPreview && (
+                        <Box sx={{ width: 60, height: 60, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
+                          <img 
+                            src={logoPreview} 
+                            alt="Logo Preview" 
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ flex: 1 }}>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="logo-upload"
+                          type="file"
+                          onChange={handleLogoUpload}
+                        />
+                        <label htmlFor="logo-upload">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            startIcon={<CloudUpload />}
+                            sx={{ width: '100%' }}
+                          >
+                            {logoFile ? logoFile.name : 'Choose Logo File'}
+                          </Button>
+                        </label>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                          Recommended: PNG, JPG, SVG (max 2MB)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Favicon Upload */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 500 }}>
+                      Favicon Upload
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      {faviconPreview && (
+                        <Box sx={{ width: 32, height: 32, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
+                          <img 
+                            src={faviconPreview} 
+                            alt="Favicon Preview" 
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        </Box>
+                      )}
+                      <Box sx={{ flex: 1 }}>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="favicon-upload"
+                          type="file"
+                          onChange={handleFaviconUpload}
+                        />
+                        <label htmlFor="favicon-upload">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            startIcon={<Image />}
+                            sx={{ width: '100%' }}
+                          >
+                            {faviconFile ? faviconFile.name : 'Choose Favicon File'}
+                          </Button>
+                        </label>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                          Recommended: ICO, PNG (16x16 or 32x32px)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
                   <TextField
                     fullWidth
                     label="Primary Color"

@@ -765,6 +765,29 @@ class ApiClient {
     const response = await this.client.post('/admin/send-donation-invoice', formData)
     return response.data
   }
+
+  // File upload API methods
+  async uploadLogo(file: File): Promise<any> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await this.client.post('/admin/upload-logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  }
+
+  async uploadFavicon(file: File): Promise<any> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await this.client.post('/admin/upload-favicon', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  }
 }
 
 export const apiClient = new ApiClient()
