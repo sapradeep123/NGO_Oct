@@ -162,7 +162,19 @@ const CauseDetail: React.FC = () => {
             }
           } catch (err: any) {
             console.error('Payment verification error:', err)
-            setError('Payment verification failed. Please contact support.')
+            let errorMessage = 'Payment verification failed. Please contact support.'
+            
+            if (err.response?.data?.detail) {
+              errorMessage = typeof err.response.data.detail === 'string' 
+                ? err.response.data.detail 
+                : JSON.stringify(err.response.data.detail)
+            } else if (err.message) {
+              errorMessage = typeof err.message === 'string' 
+                ? err.message 
+                : JSON.stringify(err.message)
+            }
+            
+            setError(errorMessage)
             setIsDonating(false)
           }
         },
@@ -182,7 +194,19 @@ const CauseDetail: React.FC = () => {
 
     } catch (err: any) {
       console.error('Donation error:', err)
-      setError(err.response?.data?.detail || err.message || 'Donation failed')
+      let errorMessage = 'Donation failed'
+      
+      if (err.response?.data?.detail) {
+        errorMessage = typeof err.response.data.detail === 'string' 
+          ? err.response.data.detail 
+          : JSON.stringify(err.response.data.detail)
+      } else if (err.message) {
+        errorMessage = typeof err.message === 'string' 
+          ? err.message 
+          : JSON.stringify(err.message)
+      }
+      
+      setError(errorMessage)
       setIsDonating(false)
     }
   }
@@ -215,18 +239,18 @@ const CauseDetail: React.FC = () => {
         {/* Cause Header */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h3" component="h1" gutterBottom>
-            {cause.title}
+            {cause?.title || 'Loading...'}
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Chip 
               icon={<AccountBalance />} 
-              label={cause.ngo_name || 'Unknown NGO'} 
+              label={cause?.ngo_name || 'Unknown NGO'} 
               color="primary" 
             />
             <Chip 
               icon={<VolunteerActivism />} 
-              label={cause.category_name || 'Uncategorized'} 
+              label={cause?.category_name || 'Uncategorized'} 
               color="secondary" 
             />
             <Chip 
@@ -236,7 +260,7 @@ const CauseDetail: React.FC = () => {
           </Box>
 
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            {cause.description}
+            {cause?.description || 'Loading...'}
           </Typography>
         </Box>
 
@@ -249,7 +273,7 @@ const CauseDetail: React.FC = () => {
                   About This Cause
                 </Typography>
                 <Typography variant="body1" paragraph>
-                  {cause.description}
+                  {cause?.description || 'Loading...'}
                 </Typography>
                 
                 <Divider sx={{ my: 2 }} />
@@ -260,10 +284,10 @@ const CauseDetail: React.FC = () => {
                 <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography variant="body2">
-                      Raised: ₹{cause.current_amount?.toLocaleString() || 0}
+                      Raised: ₹{cause?.current_amount?.toLocaleString() || 0}
                     </Typography>
                     <Typography variant="body2">
-                      Goal: ₹{cause.target_amount?.toLocaleString()}
+                      Goal: ₹{cause?.target_amount?.toLocaleString() || 0}
                     </Typography>
                   </Box>
                   <LinearProgress 
@@ -284,7 +308,7 @@ const CauseDetail: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <AccountBalance color="primary" />
                   <Typography variant="body1">
-                    {cause.ngo_name || 'Unknown NGO'}
+                    {cause?.ngo_name || 'Unknown NGO'}
                   </Typography>
                 </Box>
               </CardContent>
@@ -377,7 +401,7 @@ const CauseDetail: React.FC = () => {
                 
                 {error && (
                   <Alert severity="error" sx={{ mb: 2 }}>
-                    {error}
+                    {typeof error === 'string' ? error : JSON.stringify(error)}
                   </Alert>
                 )}
 
@@ -432,7 +456,7 @@ const CauseDetail: React.FC = () => {
           </DialogTitle>
           <DialogContent>
             <Typography variant="body1" paragraph>
-              Thank you for your generous donation of ₹{donationSuccess?.amount?.toLocaleString()} to {donationSuccess?.cause_title}!
+              Thank you for your generous donation of ₹{donationSuccess?.amount?.toLocaleString() || '0'} to {donationSuccess?.cause_title || 'this cause'}!
             </Typography>
             
             <Box sx={{ backgroundColor: '#f5f5f5', p: 2, borderRadius: 1, mb: 2 }}>
