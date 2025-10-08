@@ -189,8 +189,8 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
 BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
 BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8002"))
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_1DP5mmOlF5G5ag")
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "thisisjustademokey")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_XwigzkMzvBU19Q")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "vENWqX0XZE8RNzC4R6R5hxzr")
 
 # Helper function to get current user from request
 async def get_current_user_from_request(request: Request):
