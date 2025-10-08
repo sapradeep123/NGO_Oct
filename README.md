@@ -37,7 +37,7 @@ A comprehensive platform for managing NGO donations, vendor relationships, and c
    - **Preview Microsite**: See how the public microsite will look
 
 ### For Public Users
-1. **Access**: Visit `http://localhost:5173/microsite/{ngo-slug}` (e.g., `/microsite/hope-trust`)
+1. **Access**: Visit `{FRONTEND_URL}/microsite/{ngo-slug}` (e.g., `/microsite/hope-trust`)
 2. **Features**:
    - **Real Causes**: View only that NGO's causes (no other NGO data)
    - **Donation Workflow**: Complete donation process with transaction tracking
@@ -46,10 +46,10 @@ A comprehensive platform for managing NGO donations, vendor relationships, and c
    - **Responsive**: Works on all devices
 
 ### Key URLs
-- **Main Platform**: `http://localhost:5173`
-- **Hope Trust Microsite**: `http://localhost:5173/microsite/hope-trust`
-- **Care Works Microsite**: `http://localhost:5173/microsite/care-works`
-- **Health First Microsite**: `http://localhost:5173/microsite/health-first`
+- **Main Platform**: `{FRONTEND_URL}`
+- **Hope Trust Microsite**: `{FRONTEND_URL}/microsite/hope-trust`
+- **Care Works Microsite**: `{FRONTEND_URL}/microsite/care-works`
+- **Health First Microsite**: `{FRONTEND_URL}/microsite/health-first`
 
 ## 🏗️ Architecture
 
@@ -109,9 +109,9 @@ python simple_backend.py
 ```
 
 ### Access Points
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+- **Frontend**: `{FRONTEND_URL}` (default: http://localhost:5173)
+- **Backend API**: `{API_URL}` (default: http://localhost:8002)
+- **API Documentation**: `{API_URL}/docs`
 
 ## 👥 User Roles & Credentials
 
