@@ -1348,6 +1348,33 @@ async def get_admin_donors(request: Request):
             "Count": 0
         }
 
+@app.get("/admin/orders")
+async def get_admin_orders(request: Request):
+    """Get all orders for platform admin"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] != "PLATFORM_ADMIN":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Return all orders with enriched data
+    enriched_orders = []
+    for order in orders_storage:
+        enriched_order = {
+            **order,
+            "vendor_contact_email": next((v["contact_email"] for v in vendors_storage if v["id"] == order["vendor_id"]), ""),
+            "ngo_contact_email": next((n["contact_email"] for n in ngos_storage if n["id"] == order["ngo_id"]), ""),
+            "cause_description": next((c["description"] for c in causes_storage if c["id"] == order["cause_id"]), ""),
+        }
+        enriched_orders.append(enriched_order)
+    
+    return {
+        "value": enriched_orders,
+        "Count": len(enriched_orders)
+    }
+
 @app.get("/admin/payments")
 async def get_admin_payments():
     """Get payment summary for admin console with reconciliation data"""
