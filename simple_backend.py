@@ -7,6 +7,7 @@ import razorpay
 import json
 import hashlib
 import hmac
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -88,7 +89,7 @@ def get_welcome_template(user_name: str, user_role: str) -> str:
                     <li>Connect with NGOs and causes</li>
                     <li>Make a positive impact in your community</li>
                 </ul>
-                <a href="http://localhost:5173/login" class="button">Get Started</a>
+                <a href="{FRONTEND_URL}/login" class="button">Get Started</a>
                 <p>If you have any questions, feel free to contact our support team.</p>
             </div>
             <div class="footer">
@@ -183,6 +184,13 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
         print(f"Email sending failed: {str(e)}")
         print(f"Error type: {type(e).__name__}")
         return False
+
+# Environment Configuration
+BACKEND_HOST = os.getenv("BACKEND_HOST", "0.0.0.0")
+BACKEND_PORT = int(os.getenv("BACKEND_PORT", "8002"))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_1DP5mmOlF5G5ag")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "thisisjustademokey")
 
 # Helper function to get current user from request
 async def get_current_user_from_request(request: Request):
@@ -590,6 +598,7 @@ causes_storage = [
         "ngo_ids": [1],  # Hope Trust
         "category_name": "Emergency Relief",
         "ngo_names": ["Hope Trust"],
+        "ngo_name": "Hope Trust",
         "image_url": "https://picsum.photos/400/300?random=4",
         "created_at": "2024-01-12T00:00:00Z",
         "donation_count": 18
@@ -605,6 +614,7 @@ causes_storage = [
         "ngo_ids": [2],  # Care Works
         "category_name": "Women & Children",
         "ngo_names": ["Care Works"],
+        "ngo_name": "Care Works",
         "image_url": "https://picsum.photos/400/300?random=5",
         "created_at": datetime.now().isoformat() + "Z",
         "donation_count": 22
@@ -908,15 +918,13 @@ website_settings_storage = {
 
 app = FastAPI(title="NGO Donations Platform", version="1.0.0")
 
-# Razorpay Configuration (Test Credentials)
-RAZORPAY_KEY_ID = "rzp_test_XwigzkMzvBU19Q"  # Your test key
-RAZORPAY_KEY_SECRET = "vENWqX0XZE8RNzC4R6R5hxzr"  # Your test secret
+# Razorpay Configuration (using environment variables)
 razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1431,6 +1439,7 @@ async def create_cause(
         "image_url": image_url or f"https://picsum.photos/400/300?random={hash(title) % 1000}",
         "created_at": datetime.now().isoformat() + "Z",
         "ngo_names": ngo_names,  # List of NGO names
+        "ngo_name": ngo_names[0] if ngo_names else "Unknown NGO",  # Single NGO name for frontend
         "category_name": category["name"] if category else "Unknown Category",
         "donation_count": 0
     }
@@ -1501,6 +1510,7 @@ async def create_ngo_cause(
         "image_url": image_url or f"https://picsum.photos/400/300?random={hash(title) % 1000}",
         "created_at": datetime.now().isoformat() + "Z",
         "ngo_names": [ngo["name"]] if ngo else ["Unknown NGO"],
+        "ngo_name": ngo["name"] if ngo else "Unknown NGO",  # Single NGO name for frontend
         "category_name": category["name"] if category else "Unknown Category",
         "donation_count": 0,
         "type": type
@@ -3124,7 +3134,7 @@ async def send_password_reset_email(
     if current_user["role"] != "PLATFORM_ADMIN": raise HTTPException(status_code=403, detail="Access denied")
     
     # Generate reset link (in real app, this would be a secure token)
-    reset_link = f"http://localhost:5173/reset-password?email={user_email}&token=demo_token"
+    reset_link = f"{FRONTEND_URL}/reset-password?email={user_email}&token=demo_token"
     
     # Get user name (simplified for demo)
     user_name = user_email.split('@')[0].replace('.', ' ').title()
@@ -3248,3 +3258,7 @@ async def upload_favicon(file: UploadFile = File(...), request: Request = None):
         "filename": filename,
         "url": f"/uploads/{filename}"
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host=BACKEND_HOST, port=BACKEND_PORT)

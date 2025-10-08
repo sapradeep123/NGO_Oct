@@ -141,7 +141,11 @@ class ApiClient {
   private baseURL: string
 
   constructor() {
-    this.baseURL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000'
+    // Use environment variable or fallback to localhost for development
+    this.baseURL = (import.meta as any).env?.VITE_API_BASE_URL || 
+                   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                    ? 'http://localhost:8002' 
+                    : `${window.location.protocol}//${window.location.hostname}:8002`)
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
@@ -545,7 +549,7 @@ class ApiClient {
   }
 
   async getVendorDetails(vendorId: number): Promise<any> {
-    const response = await this.client.get(`/admin/vendors/${vendorId}`)
+    const response = await this.client.get(`/admin/vendors/${vendorId}/details`)
     return response.data
   }
 
