@@ -721,9 +721,9 @@ class ApiClient {
   }
 
   // Donation History API methods
-  async getDonorDonations(): Promise<any> {
+  async getDonorDonations(): Promise<any[]> {
     const response = await this.client.get('/donor/donations')
-    return response.data
+    return response.data.value || []
   }
 
   async getDonorDonationsByNgo(ngoSlug: string): Promise<any> {
