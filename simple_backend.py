@@ -3092,6 +3092,53 @@ async def get_cause_delivery_status(cause_id: int, request: Request):
         "last_updated": latest_order["updated_at"]
     }
 
+@app.get("/donor/orders")
+async def get_donor_orders(request: Request):
+    """Get order status for causes that the donor has donated to"""
+    current_user = await get_current_user_from_request(request)
+    
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if current_user["role"] != "DONOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    donor_email = current_user["email"]
+    
+    # Get all donations by this donor
+    donor_donations = [d for d in donations_storage if d["donor_email"] == donor_email]
+    
+    # Get unique cause IDs that the donor has donated to
+    donated_cause_ids = list(set([d["cause_id"] for d in donor_donations]))
+    
+    # Get orders for these causes
+    donor_orders = []
+    for order in orders_storage:
+        if order["cause_id"] in donated_cause_ids:
+            # Find the donor's donation for this cause
+            donor_donation = next((d for d in donor_donations if d["cause_id"] == order["cause_id"]), None)
+            
+            enriched_order = {
+                **order,
+                "donor_donation_amount": donor_donation["amount"] if donor_donation else 0,
+                "donor_donation_date": donor_donation["created_at"] if donor_donation else None,
+                "donor_donation_id": donor_donation["id"] if donor_donation else None,
+                "vendor_contact_email": next((v["contact_email"] for v in vendors_storage if v["id"] == order["vendor_id"]), ""),
+                "ngo_contact_email": next((n["contact_email"] for n in ngos_storage if n["id"] == order["ngo_id"]), ""),
+                "cause_description": next((c["description"] for c in causes_storage if c["id"] == order["cause_id"]), ""),
+            }
+            donor_orders.append(enriched_order)
+    
+    # Sort by donation date (most recent first)
+    donor_orders.sort(key=lambda x: x["donor_donation_date"], reverse=True)
+    
+    return {
+        "value": donor_orders,
+        "Count": len(donor_orders),
+        "donor_email": donor_email,
+        "total_donated_causes": len(donated_cause_ids)
+    }
+
 @app.get("/donor/tax-documents")
 async def get_donor_tax_documents(request: Request):
     """Get tax documents for the current donor"""

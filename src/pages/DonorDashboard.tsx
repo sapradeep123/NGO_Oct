@@ -97,6 +97,12 @@ const DonorDashboard: React.FC = () => {
     queryFn: () => apiClient.getDonorDonations(),
   })
 
+  // Fetch donor's order status
+  const { data: donorOrders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ['donor-orders'],
+    queryFn: () => apiClient.getDonorOrders(),
+  })
+
   // Fetch donor's tickets
   const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
     queryKey: ['donor-tickets'],
@@ -272,6 +278,7 @@ const DonorDashboard: React.FC = () => {
 
         <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
           <Tab label="My Donations" />
+          <Tab label="Order Status" />
           <Tab label="Support Tickets" />
           <Tab label="Tax Documents" />
         </Tabs>
@@ -393,8 +400,97 @@ const DonorDashboard: React.FC = () => {
           </Card>
         </TabPanel>
 
-        {/* Support Tickets Tab */}
+        {/* Order Status Tab */}
         <TabPanel value={tabValue} index={1}>
+          <Typography variant="h5" gutterBottom>
+            Order Status for My Donations
+          </Typography>
+          
+          {ordersLoading ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : donorOrders.length === 0 ? (
+            <Card>
+              <CardContent>
+                <Typography variant="body1" color="text.secondary" align="center">
+                  No orders found for your donations. Orders will appear here once NGOs place orders for causes you've supported.
+                </Typography>
+              </CardContent>
+            </Card>
+          ) : (
+            <Grid container spacing={2}>
+              {donorOrders.map((order: any) => (
+                <Grid item xs={12} key={order.id}>
+                  <Card>
+                    <CardContent>
+                      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                        <Box>
+                          <Typography variant="h6" gutterBottom>
+                            {order.cause_title}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            NGO: {order.ngo_name} | Vendor: {order.vendor_name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Order #{order.order_number} | Your Donation: ₹{order.donor_donation_amount?.toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Chip 
+                          label={order.status?.replace('_', ' ')} 
+                          color={
+                            order.status === 'ORDER_DELIVERED' ? 'success' :
+                            order.status === 'ORDER_IN_TRANSIT' ? 'info' :
+                            order.status === 'ORDER_IN_PROCESS' ? 'warning' :
+                            'default'
+                          }
+                          size="small"
+                        />
+                      </Box>
+                      
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Order Details:</strong> {order.order_details}
+                      </Typography>
+                      
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Delivery Address:</strong> {order.delivery_address}
+                      </Typography>
+                      
+                      <Typography variant="body2" gutterBottom>
+                        <strong>Contact Person:</strong> {order.contact_person} ({order.contact_phone})
+                      </Typography>
+                      
+                      {order.delivery_date && (
+                        <Typography variant="body2" gutterBottom>
+                          <strong>Expected Delivery:</strong> {new Date(order.delivery_date).toLocaleDateString()}
+                        </Typography>
+                      )}
+                      
+                      {order.delivered_at && (
+                        <Typography variant="body2" gutterBottom>
+                          <strong>Delivered On:</strong> {new Date(order.delivered_at).toLocaleDateString()}
+                        </Typography>
+                      )}
+                      
+                      {order.ngo_confirmed_at && (
+                        <Typography variant="body2" color="success.main" gutterBottom>
+                          <strong>✓ Confirmed by NGO:</strong> {new Date(order.ngo_confirmed_at).toLocaleDateString()}
+                        </Typography>
+                      )}
+                      
+                      <Typography variant="caption" color="text.secondary">
+                        Last Updated: {new Date(order.updated_at).toLocaleString()}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </TabPanel>
+
+        {/* Support Tickets Tab */}
+        <TabPanel value={tabValue} index={2}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5">
               Support Tickets
@@ -421,7 +517,7 @@ const DonorDashboard: React.FC = () => {
         </TabPanel>
 
         {/* Tax Documents Tab */}
-        <TabPanel value={tabValue} index={2}>
+        <TabPanel value={tabValue} index={3}>
           <Typography variant="h5" gutterBottom>
             Tax Documents
           </Typography>

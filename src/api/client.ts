@@ -605,6 +605,12 @@ class ApiClient {
     return response.data
   }
 
+  // Donor Order API methods
+  async getDonorOrders(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/donor/orders')
+    return response.data.value || []
+  }
+
   async getNgoOrders(): Promise<any[]> {
     const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/ngo/orders')
     return response.data.value || []
