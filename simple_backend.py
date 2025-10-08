@@ -893,6 +893,40 @@ donations_storage = [
         "razorpay_order_id": "order_RQWnbKvimo7HMt",
         "razorpay_payment_id": "pay_RQWnbKvimo7HMt",
         "razorpay_signature": "verified_signature"
+    },
+    {
+        "id": 2,
+        "cause_id": 1,
+        "cause_title": "Emergency Food Relief",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "amount": 5000,
+        "donor_name": "Arya Sharma",
+        "donor_email": "donor.arya@example.com",
+        "donor_phone": "+91-9876543210",
+        "status": "COMPLETED",
+        "created_at": "2024-01-15T00:00:00Z",
+        "completed_at": "2024-01-15T00:00:00Z",
+        "razorpay_order_id": "order_EmergencyFoodRelief_001",
+        "razorpay_payment_id": "pay_EmergencyFoodRelief_001",
+        "razorpay_signature": "verified_signature_001"
+    },
+    {
+        "id": 3,
+        "cause_id": 2,
+        "cause_title": "School Supplies Drive",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "amount": 10000,
+        "donor_name": "Arya Sharma",
+        "donor_email": "donor.arya@example.com",
+        "donor_phone": "+91-9876543210",
+        "status": "COMPLETED",
+        "created_at": "2024-01-10T00:00:00Z",
+        "completed_at": "2024-01-10T00:00:00Z",
+        "razorpay_order_id": "order_SchoolSupplies_001",
+        "razorpay_payment_id": "pay_SchoolSupplies_001",
+        "razorpay_signature": "verified_signature_002"
     }
 ]
 
@@ -3051,20 +3085,6 @@ tickets_storage = [
 ]
 
 # Donor-specific endpoints
-@app.get("/donor/donations")
-async def get_donor_donations(request: Request):
-    """Get donations for the current donor"""
-    current_user = await get_current_user_from_request(request)
-    if not current_user: raise HTTPException(status_code=401, detail="Authentication required")
-    if current_user["role"] != "DONOR": raise HTTPException(status_code=403, detail="Access denied")
-    
-    # Get donor's donation history
-    donor_email = current_user["email"]
-    donor = next((d for d in donors_storage if d["email"] == donor_email), None)
-    if not donor: raise HTTPException(status_code=404, detail="Donor not found")
-    
-    return {"value": donor.get("donation_history", []), "Count": len(donor.get("donation_history", []))}
-
 @app.get("/donor/causes/{cause_id}/status")
 async def get_cause_delivery_status(cause_id: int, request: Request):
     """Get delivery status for a specific cause"""
@@ -3252,9 +3272,26 @@ async def get_donor_donations(request: Request):
     # Sort by date (most recent first)
     donor_donations.sort(key=lambda x: x["created_at"], reverse=True)
     
+    # Format donations for frontend compatibility
+    formatted_donations = []
+    for donation in donor_donations:
+        formatted_donations.append({
+            "id": donation["id"],
+            "cause_id": donation["cause_id"],
+            "cause_title": donation["cause_title"],
+            "ngo_name": donation["ngo_name"],
+            "amount": donation["amount"],
+            "date": donation["created_at"],
+            "status": donation["status"],
+            "razorpay_order_id": donation.get("razorpay_order_id"),
+            "razorpay_payment_id": donation.get("razorpay_payment_id"),
+            "donor_name": donation["donor_name"],
+            "donor_email": donation["donor_email"]
+        })
+    
     return {
-        "donations": donor_donations,
-        "total_donations": len(donor_donations),
+        "value": formatted_donations,
+        "Count": len(formatted_donations),
         "total_amount": sum(d["amount"] for d in donor_donations)
     }
 
