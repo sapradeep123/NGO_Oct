@@ -184,7 +184,11 @@ const NgoDashboard: React.FC = () => {
     queryFn: () => apiClient.getCategories()
   })
 
-  // Photo upload mutation
+  // Fetch NGO orders
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ['ngo-orders'],
+    queryFn: () => apiClient.getNgoOrders(),
+  })
   const photoUploadMutation = useMutation({
     mutationFn: async ({ photo, ngoId }: { photo: File, ngoId: number }) => {
       return apiClient.uploadNgoPhoto(photo, ngoId)
@@ -241,6 +245,20 @@ const NgoDashboard: React.FC = () => {
     },
     onError: (error: any) => {
       alert(error.response?.data?.detail || 'Failed to update contact page')
+    },
+  })
+
+  // Order confirmation mutation
+  const confirmOrderMutation = useMutation({
+    mutationFn: async (orderId: number) => {
+      return apiClient.confirmOrderDelivery(orderId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ngo-orders'] })
+      alert('Order delivery confirmed successfully!')
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.detail || 'Failed to confirm order delivery')
     },
   })
 
@@ -455,6 +473,7 @@ const NgoDashboard: React.FC = () => {
   console.log('NGO data:', ngo)
   console.log('Vendors:', vendors)
   console.log('Causes:', causes)
+  console.log('Orders:', orders)
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -523,12 +542,13 @@ const NgoDashboard: React.FC = () => {
           <Tab label="NGO Details" id="simple-tab-0" aria-controls="simple-tabpanel-0" />
           <Tab label="Financial Summary" id="simple-tab-1" aria-controls="simple-tabpanel-1" />
           <Tab label="Associated Vendors" id="simple-tab-2" aria-controls="simple-tabpanel-2" />
-          <Tab label="Active Causes" id="simple-tab-3" aria-controls="simple-tabpanel-3" />
-          <Tab label="Invoice History" id="simple-tab-4" aria-controls="simple-tabpanel-4" />
-          <Tab label="Donor Details" id="simple-tab-5" aria-controls="simple-tabpanel-5" />
-          <Tab label="About Us Page" id="simple-tab-6" aria-controls="simple-tabpanel-6" />
-          <Tab label="Contact Page" id="simple-tab-7" aria-controls="simple-tabpanel-7" />
-          <Tab label="Photo Gallery" id="simple-tab-8" aria-controls="simple-tabpanel-8" />
+          <Tab label="Order Status" id="simple-tab-3" aria-controls="simple-tabpanel-3" />
+          <Tab label="Active Causes" id="simple-tab-4" aria-controls="simple-tabpanel-4" />
+          <Tab label="Invoice History" id="simple-tab-5" aria-controls="simple-tabpanel-5" />
+          <Tab label="Donor Details" id="simple-tab-6" aria-controls="simple-tabpanel-6" />
+          <Tab label="About Us Page" id="simple-tab-7" aria-controls="simple-tabpanel-7" />
+          <Tab label="Contact Page" id="simple-tab-8" aria-controls="simple-tabpanel-8" />
+          <Tab label="Photo Gallery" id="simple-tab-9" aria-controls="simple-tabpanel-9" />
         </Tabs>
       </Box>
 
@@ -809,8 +829,100 @@ const NgoDashboard: React.FC = () => {
         </Card>
       </TabPanel>
 
-      {/* Active Causes Tab */}
+      {/* Order Status Tab */}
       <TabPanel value={tabValue} index={3}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Order Status with Vendors
+            </Typography>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Order #</TableCell>
+                    <TableCell>Cause</TableCell>
+                    <TableCell>Vendor</TableCell>
+                    <TableCell>Amount</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell>Delivery Date</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {ordersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        <CircularProgress size={24} />
+                      </TableCell>
+                    </TableRow>
+                  ) : orders.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No orders found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    orders.map((order: any) => (
+                      <TableRow key={order.id}>
+                        <TableCell>{order.order_number}</TableCell>
+                        <TableCell>{order.cause_title}</TableCell>
+                        <TableCell>{order.vendor_name}</TableCell>
+                        <TableCell>₹{order.order_amount?.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={order.status?.replace('_', ' ')} 
+                            color={
+                              order.status === 'ORDER_DELIVERED' ? 'success' :
+                              order.status === 'ORDER_IN_TRANSIT' ? 'info' :
+                              order.status === 'ORDER_IN_PROCESS' ? 'warning' :
+                              'default'
+                            }
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {order.status === 'ORDER_DELIVERED' && !order.ngo_confirmed_at ? (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              disabled={confirmOrderMutation.isPending}
+                              onClick={() => confirmOrderMutation.mutate(order.id)}
+                            >
+                              {confirmOrderMutation.isPending ? 'Confirming...' : 'Confirm Delivery'}
+                            </Button>
+                          ) : order.status === 'ORDER_DELIVERED' && order.ngo_confirmed_at ? (
+                            <Chip 
+                              label="Confirmed" 
+                              color="success" 
+                              size="small"
+                            />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              Waiting for vendor
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </TabPanel>
+
+      {/* Active Causes Tab */}
+      <TabPanel value={tabValue} index={4}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6">Active Causes</Typography>
           <Button
@@ -857,7 +969,7 @@ const NgoDashboard: React.FC = () => {
       </TabPanel>
 
       {/* Invoice History Tab */}
-      <TabPanel value={tabValue} index={4}>
+      <TabPanel value={tabValue} index={5}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -908,7 +1020,7 @@ const NgoDashboard: React.FC = () => {
       </TabPanel>
 
       {/* Donor Details Tab */}
-      <TabPanel value={tabValue} index={5}>
+      <TabPanel value={tabValue} index={6}>
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -986,7 +1098,7 @@ const NgoDashboard: React.FC = () => {
       </TabPanel>
 
       {/* About Us Page Tab */}
-      <TabPanel value={tabValue} index={6}>
+      <TabPanel value={tabValue} index={7}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h6">About Us Page Management</Typography>
           <Button
@@ -1036,7 +1148,7 @@ const NgoDashboard: React.FC = () => {
       </TabPanel>
 
       {/* Contact Page Tab */}
-      <TabPanel value={tabValue} index={7}>
+      <TabPanel value={tabValue} index={8}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h6">Contact Page Management</Typography>
           <Button
@@ -1092,7 +1204,7 @@ const NgoDashboard: React.FC = () => {
       </TabPanel>
 
       {/* Photo Gallery Tab */}
-      <TabPanel value={tabValue} index={8}>
+      <TabPanel value={tabValue} index={9}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h6">Photo Gallery Management</Typography>
           <Button
