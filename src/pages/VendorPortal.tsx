@@ -32,7 +32,11 @@ import {
   CheckCircle,
   PlayArrow,
   Done,
-  Receipt
+  Receipt, 
+  Business,
+  VolunteerActivism,
+  Inventory,
+  Update
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthContext'
@@ -72,11 +76,32 @@ const VendorPortal: React.FC = () => {
   const [statusUpdateOpen, setStatusUpdateOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [deliveryDate, setDeliveryDate] = useState('')
+  const [stockStatusOpen, setStockStatusOpen] = useState(false)
+  const [selectedCause, setSelectedCause] = useState<any>(null)
+  const [stockFormData, setStockFormData] = useState({
+    status: 'AVAILABLE',
+    available_quantity: '',
+    unit: '',
+    price_per_unit: '',
+    notes: ''
+  })
 
   // Fetch vendor's orders
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['vendor-orders'],
     queryFn: () => apiClient.getVendorOrders(),
+  })
+
+  // Fetch vendor associations
+  const { data: associations, isLoading: associationsLoading } = useQuery({
+    queryKey: ['vendor-associations'],
+    queryFn: () => apiClient.getVendorAssociations(),
+  })
+
+  // Fetch vendor stock status
+  const { data: stockStatus = [], isLoading: stockLoading } = useQuery({
+    queryKey: ['vendor-stock-status'],
+    queryFn: () => apiClient.getVendorStockStatus(),
   })
 
   // Update order status mutation
@@ -89,6 +114,24 @@ const VendorPortal: React.FC = () => {
       setStatusUpdateOpen(false)
       setSelectedOrder(null)
       setDeliveryDate('')
+    },
+  })
+
+  // Update stock status mutation
+  const updateStockMutation = useMutation({
+    mutationFn: async (stockData: any) => {
+      return apiClient.updateStockStatus(stockData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor-stock-status'] })
+      setStockStatusOpen(false)
+      setStockFormData({
+        status: 'AVAILABLE',
+        available_quantity: '',
+        unit: '',
+        price_per_unit: '',
+        notes: ''
+      })
     },
   })
 
@@ -150,12 +193,12 @@ const VendorPortal: React.FC = () => {
                 <TableCell>{order.ngo_name}</TableCell>
                 <TableCell>₹{order.order_amount.toLocaleString()}</TableCell>
                 <TableCell>
-                  <Chip
+      <Chip 
                     icon={getStatusIcon(order.status)}
                     label={order.status.replace('_', ' ')}
                     color={getStatusColor(order.status) as any}
-                    size="small"
-                  />
+        size="small"
+      />
                 </TableCell>
                 <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
@@ -247,6 +290,9 @@ const VendorPortal: React.FC = () => {
           <Tab label="Order In Transit" />
           <Tab label="Order Delivered" />
           <Tab label="All Orders" />
+          <Tab label="NGO Associations" />
+          <Tab label="Cause Associations" />
+          <Tab label="Stock Management" />
         </Tabs>
 
         {/* Order Received Tab */}
@@ -276,7 +322,7 @@ const VendorPortal: React.FC = () => {
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Orders currently being processed
-              </Typography>
+          </Typography>
               <OrderTable 
                 ordersToShow={getOrdersByStatus('ORDER_IN_PROCESS')} 
                 emptyMessage="No orders in process"
@@ -287,57 +333,250 @@ const VendorPortal: React.FC = () => {
 
         {/* Order In Transit Tab */}
         <TabPanel value={tabValue} index={2}>
-          <Card>
-            <CardContent>
+            <Card>
+              <CardContent>
               <Typography variant="h6" gutterBottom>
                 Order In Transit ({getOrdersByStatus('ORDER_IN_TRANSIT').length})
-              </Typography>
+                    </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Orders shipped and in transit
-              </Typography>
+                    </Typography>
               <OrderTable 
                 ordersToShow={getOrdersByStatus('ORDER_IN_TRANSIT')} 
                 emptyMessage="No orders in transit"
               />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
         </TabPanel>
 
         {/* Order Delivered Tab */}
         <TabPanel value={tabValue} index={3}>
-          <Card>
-            <CardContent>
+            <Card>
+              <CardContent>
               <Typography variant="h6" gutterBottom>
                 Order Delivered ({getOrdersByStatus('ORDER_DELIVERED').length})
-              </Typography>
+                    </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Orders delivered and waiting for NGO confirmation
-              </Typography>
+                    </Typography>
               <OrderTable 
                 ordersToShow={getOrdersByStatus('ORDER_DELIVERED')} 
                 emptyMessage="No orders delivered yet"
               />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
         </TabPanel>
 
         {/* All Orders Tab */}
         <TabPanel value={tabValue} index={4}>
-          <Card>
-            <CardContent>
+            <Card>
+              <CardContent>
               <Typography variant="h6" gutterBottom>
                 All Orders ({getAllOrders().length})
-              </Typography>
+                    </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Complete overview of all orders
-              </Typography>
+                    </Typography>
               <OrderTable 
                 ordersToShow={getAllOrders()} 
                 emptyMessage="No orders found"
               />
+              </CardContent>
+            </Card>
+        </TabPanel>
+
+        {/* NGO Associations Tab */}
+        <TabPanel value={tabValue} index={5}>
+            <Card>
+              <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Associated NGOs ({associations?.associated_ngos?.length || 0})
+                    </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                NGOs you are currently associated with
+                    </Typography>
+              {associationsLoading ? (
+                <Box display="flex" justifyContent="center" p={3}>
+                  <CircularProgress />
+                </Box>
+              ) : associations?.associated_ngos?.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                  No NGO associations found
+                </Typography>
+              ) : (
+                <Grid container spacing={2}>
+                  {associations?.associated_ngos?.map((ngo: any) => (
+                    <Grid item xs={12} sm={6} md={4} key={ngo.id}>
+                      <Card variant="outlined">
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Business color="primary" sx={{ mr: 1 }} />
+                            <Typography variant="h6">{ngo.name}</Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            📧 {ngo.contact_email}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            📞 {ngo.contact_phone}
+                          </Typography>
+                          {ngo.website_url && (
+                            <Typography variant="body2" color="primary">
+                              🌐 {ngo.website_url}
+                            </Typography>
+                          )}
+              </CardContent>
+            </Card>
+          </Grid>
+                  ))}
+        </Grid>
+              )}
             </CardContent>
           </Card>
         </TabPanel>
+
+        {/* Cause Associations Tab */}
+        <TabPanel value={tabValue} index={6}>
+        <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Associated Causes ({associations?.associated_causes?.length || 0})
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Causes you have orders for
+              </Typography>
+              {associationsLoading ? (
+                <Box display="flex" justifyContent="center" p={3}>
+                  <CircularProgress />
+            </Box>
+              ) : associations?.associated_causes?.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                  No cause associations found
+                </Typography>
+              ) : (
+                <Grid container spacing={2}>
+                  {associations?.associated_causes?.map((cause: any) => (
+                  <Grid item xs={12} sm={6} md={4} key={cause.id}>
+                      <Card variant="outlined">
+                      <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <VolunteerActivism color="secondary" sx={{ mr: 1 }} />
+                            <Typography variant="h6">{cause.title}</Typography>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            {cause.description}
+                        </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            🏢 {cause.ngo_name}
+                        </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            📦 Orders: {cause.order_count}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            📅 Last Order: {cause.last_order_date ? new Date(cause.last_order_date).toLocaleDateString() : 'N/A'}
+                          </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+            </CardContent>
+          </Card>
+          </TabPanel>
+
+        {/* Stock Management Tab */}
+        <TabPanel value={tabValue} index={7}>
+          <Card>
+            <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                  Stock Status Management ({stockStatus.length})
+              </Typography>
+              <Button
+                variant="contained"
+                  startIcon={<Update />}
+                  onClick={() => {
+                    setSelectedCause(null)
+                    setStockStatusOpen(true)
+                  }}
+                >
+                  Update Stock
+              </Button>
+            </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Manage stock availability for causes
+              </Typography>
+              {stockLoading ? (
+                <Box display="flex" justifyContent="center" p={3}>
+                  <CircularProgress />
+                </Box>
+              ) : stockStatus.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                  No stock status records found
+                </Typography>
+              ) : (
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Cause</TableCell>
+                        <TableCell>NGO</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Quantity</TableCell>
+                        <TableCell>Unit</TableCell>
+                        <TableCell>Price/Unit</TableCell>
+                        <TableCell>Notes</TableCell>
+                        <TableCell>Updated</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {stockStatus.map((stock: any) => (
+                        <TableRow key={stock.id}>
+                          <TableCell>{stock.cause_title}</TableCell>
+                          <TableCell>{stock.ngo_name}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={stock.status}
+                              color={
+                                stock.status === 'AVAILABLE' ? 'success' :
+                                stock.status === 'LIMITED' ? 'warning' : 'error'
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>{stock.available_quantity}</TableCell>
+                          <TableCell>{stock.unit}</TableCell>
+                          <TableCell>₹{stock.price_per_unit}</TableCell>
+                          <TableCell>{stock.notes}</TableCell>
+                          <TableCell>{new Date(stock.updated_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setSelectedCause(stock)
+                                setStockFormData({
+                                  status: stock.status,
+                                  available_quantity: stock.available_quantity.toString(),
+                                  unit: stock.unit,
+                                  price_per_unit: stock.price_per_unit.toString(),
+                                  notes: stock.notes
+                                })
+                                setStockStatusOpen(true)
+                              }}
+                            >
+                              <Update />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </CardContent>
+          </Card>
+          </TabPanel>
 
         {/* Order Details Dialog */}
         <Dialog open={orderDetailsOpen} onClose={() => setOrderDetailsOpen(false)} maxWidth="md" fullWidth>
@@ -435,6 +674,98 @@ const VendorPortal: React.FC = () => {
           </DialogActions>
         </Dialog>
       </Box>
+        </Dialog>
+
+        {/* Stock Status Dialog */}
+        <Dialog open={stockStatusOpen} onClose={() => setStockStatusOpen(false)} maxWidth="md" fullWidth>
+          <DialogTitle>
+            {selectedCause ? 'Update Stock Status' : 'Add Stock Status'}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Status"
+                    value={stockFormData.status}
+                    onChange={(e) => setStockFormData({ ...stockFormData, status: e.target.value })}
+                    SelectProps={{ native: true }}
+                  >
+                    <option value="AVAILABLE">Available</option>
+                    <option value="LIMITED">Limited Stock</option>
+                    <option value="OUT_OF_STOCK">Out of Stock</option>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Available Quantity"
+                    type="number"
+                    value={stockFormData.available_quantity}
+                    onChange={(e) => setStockFormData({ ...stockFormData, available_quantity: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Unit"
+                    value={stockFormData.unit}
+                    onChange={(e) => setStockFormData({ ...stockFormData, unit: e.target.value })}
+                    placeholder="e.g., pieces, kg, liters"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Price per Unit (₹)"
+                    type="number"
+                    value={stockFormData.price_per_unit}
+                    onChange={(e) => setStockFormData({ ...stockFormData, price_per_unit: e.target.value })}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Notes"
+                    multiline
+                    rows={3}
+                    value={stockFormData.notes}
+                    onChange={(e) => setStockFormData({ ...stockFormData, notes: e.target.value })}
+                    placeholder="Additional information about stock availability..."
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setStockStatusOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (selectedCause) {
+                  // Update existing stock status
+                  updateStockMutation.mutate({
+                    cause_id: selectedCause.cause_id,
+                    status: stockFormData.status,
+                    available_quantity: parseInt(stockFormData.available_quantity),
+                    unit: stockFormData.unit,
+                    price_per_unit: parseFloat(stockFormData.price_per_unit),
+                    notes: stockFormData.notes
+                  })
+                } else {
+                  // Add new stock status - need to select a cause first
+                  // This would require a cause selection dialog
+                  alert('Please select a cause first')
+                }
+              }}
+              disabled={updateStockMutation.isPending}
+            >
+              {updateStockMutation.isPending ? 'Updating...' : 'Update Stock'}
+            </Button>
+          </DialogActions>
+        </Dialog>
     </Container>
   )
 }

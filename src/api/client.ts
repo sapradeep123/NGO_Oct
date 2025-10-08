@@ -615,6 +615,29 @@ class ApiClient {
     return response.data
   }
 
+  // Vendor Association API methods
+  async getVendorAssociations(): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.get('/vendor/associations')
+    return response.data
+  }
+
+  async updateStockStatus(stockData: {
+    cause_id: number;
+    status: string;
+    available_quantity: number;
+    unit?: string;
+    price_per_unit?: number;
+    notes: string;
+  }): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.post('/vendor/stock-status', stockData)
+    return response.data
+  }
+
+  async getVendorStockStatus(): Promise<any[]> {
+    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/vendor/stock-status')
+    return response.data.value || []
+  }
+
   // Donor-specific API methods
 
   async getCauseDeliveryStatus(causeId: number): Promise<any> {

@@ -896,6 +896,58 @@ donations_storage = [
     }
 ]
 
+# Stock Status Storage
+stock_status_storage = [
+    {
+        "id": 1,
+        "vendor_id": 1,
+        "vendor_name": "Alpha Supplies",
+        "cause_id": 1,
+        "cause_title": "Daily Meals for Children",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "status": "AVAILABLE",
+        "available_quantity": 500,
+        "unit": "meal packets",
+        "price_per_unit": 30,
+        "notes": "Fresh meal packets available for immediate delivery",
+        "updated_at": "2024-01-20T10:30:00Z",
+        "created_at": "2024-01-20T10:30:00Z"
+    },
+    {
+        "id": 2,
+        "vendor_id": 1,
+        "vendor_name": "Alpha Supplies",
+        "cause_id": 2,
+        "cause_title": "School Infrastructure Development",
+        "ngo_id": 1,
+        "ngo_name": "Hope Trust",
+        "status": "LIMITED",
+        "available_quantity": 50,
+        "unit": "desks",
+        "price_per_unit": 2500,
+        "notes": "Limited stock - only 50 desks remaining",
+        "updated_at": "2024-01-20T11:00:00Z",
+        "created_at": "2024-01-20T11:00:00Z"
+    },
+    {
+        "id": 3,
+        "vendor_id": 2,
+        "vendor_name": "Beta Medical Supplies",
+        "cause_id": 3,
+        "cause_title": "Healthcare Access Program",
+        "ngo_id": 2,
+        "ngo_name": "Care Works",
+        "status": "AVAILABLE",
+        "available_quantity": 200,
+        "unit": "medical kits",
+        "price_per_unit": 500,
+        "notes": "Complete medical kits with basic supplies",
+        "updated_at": "2024-01-20T12:00:00Z",
+        "created_at": "2024-01-20T12:00:00Z"
+    }
+]
+
 # Email and Website Settings Storage
 email_settings_storage = {
     "smtp_host": "smtp.hostinger.com",
@@ -2729,6 +2781,149 @@ async def update_order_status(order_id: int, request: Request, status_data: dict
         "status": new_status,
         "updated_at": order["updated_at"],
         "message": f"Order status updated to {new_status}"
+    }
+
+@app.get("/vendor/associations")
+async def get_vendor_associations(request: Request):
+    """Get NGOs and causes associated with the current vendor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "VENDOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    vendor_id = current_user.get("vendor_id")
+    if not vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID not found")
+    
+    # Find vendor
+    vendor = next((v for v in vendors_storage if v["id"] == vendor_id), None)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    # Get associated NGOs
+    associated_ngos = []
+    for ngo in ngos_storage:
+        if vendor_id in ngo.get("vendor_associations", []):
+            associated_ngos.append({
+                "id": ngo["id"],
+                "name": ngo["name"],
+                "slug": ngo["slug"],
+                "contact_email": ngo["contact_email"],
+                "contact_phone": ngo["contact_phone"],
+                "website_url": ngo.get("website_url", ""),
+                "logo_url": ngo.get("logo_url", "")
+            })
+    
+    # Get associated causes
+    associated_causes = []
+    for cause in causes_storage:
+        if cause["status"] == "LIVE":
+            # Check if vendor has orders for this cause
+            vendor_orders_for_cause = [o for o in orders_storage if o["cause_id"] == cause["id"] and o["vendor_id"] == vendor_id]
+            if vendor_orders_for_cause:
+                associated_causes.append({
+                    "id": cause["id"],
+                    "title": cause["title"],
+                    "description": cause["description"],
+                    "ngo_id": cause["ngo_ids"][0] if cause["ngo_ids"] else None,
+                    "ngo_name": cause["ngo_name"],
+                    "category_name": cause["category_name"],
+                    "target_amount": cause["target_amount"],
+                    "current_amount": cause["current_amount"],
+                    "image_url": cause["image_url"],
+                    "order_count": len(vendor_orders_for_cause),
+                    "last_order_date": max([o["created_at"] for o in vendor_orders_for_cause]) if vendor_orders_for_cause else None
+                })
+    
+    return {
+        "vendor": {
+            "id": vendor["id"],
+            "name": vendor["name"],
+            "category": vendor["category"],
+            "contact_email": vendor["contact_email"],
+            "contact_phone": vendor["contact_phone"]
+        },
+        "associated_ngos": associated_ngos,
+        "associated_causes": associated_causes,
+        "summary": {
+            "total_ngos": len(associated_ngos),
+            "total_causes": len(associated_causes),
+            "total_orders": len([o for o in orders_storage if o["vendor_id"] == vendor_id])
+        }
+    }
+
+@app.post("/vendor/stock-status")
+async def update_stock_status(request: Request, stock_data: dict):
+    """Update stock status for a cause/category"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "VENDOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    vendor_id = current_user.get("vendor_id")
+    if not vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID not found")
+    
+    # Validate required fields
+    required_fields = ["cause_id", "status", "available_quantity", "notes"]
+    for field in required_fields:
+        if field not in stock_data:
+            raise HTTPException(status_code=400, detail=f"Missing required field: {field}")
+    
+    # Find the cause
+    cause = next((c for c in causes_storage if c["id"] == stock_data["cause_id"]), None)
+    if not cause:
+        raise HTTPException(status_code=404, detail="Cause not found")
+    
+    # Create stock status record
+    stock_status = {
+        "id": len(stock_status_storage) + 1,
+        "vendor_id": vendor_id,
+        "vendor_name": current_user.get("vendor_name", "Unknown Vendor"),
+        "cause_id": stock_data["cause_id"],
+        "cause_title": cause["title"],
+        "ngo_id": cause["ngo_ids"][0] if cause["ngo_ids"] else None,
+        "ngo_name": cause["ngo_name"],
+        "status": stock_data["status"],  # AVAILABLE, LIMITED, OUT_OF_STOCK
+        "available_quantity": stock_data["available_quantity"],
+        "unit": stock_data.get("unit", "units"),
+        "price_per_unit": stock_data.get("price_per_unit", 0),
+        "notes": stock_data["notes"],
+        "updated_at": datetime.now().isoformat() + "Z",
+        "created_at": datetime.now().isoformat() + "Z"
+    }
+    
+    # Remove existing status for this vendor-cause combination
+    stock_status_storage[:] = [s for s in stock_status_storage if not (s["vendor_id"] == vendor_id and s["cause_id"] == stock_data["cause_id"])]
+    
+    # Add new status
+    stock_status_storage.append(stock_status)
+    
+    return {
+        "message": "Stock status updated successfully",
+        "stock_status": stock_status
+    }
+
+@app.get("/vendor/stock-status")
+async def get_vendor_stock_status(request: Request):
+    """Get current stock status for the vendor"""
+    current_user = await get_current_user_from_request(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    if current_user["role"] != "VENDOR":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    vendor_id = current_user.get("vendor_id")
+    if not vendor_id:
+        raise HTTPException(status_code=400, detail="Vendor ID not found")
+    
+    vendor_stock_status = [s for s in stock_status_storage if s["vendor_id"] == vendor_id]
+    
+    return {
+        "value": vendor_stock_status,
+        "Count": len(vendor_stock_status)
     }
 
 @app.get("/ngo/orders")
