@@ -35,7 +35,6 @@ import {
   Receipt, 
   Business,
   VolunteerActivism,
-  Inventory,
   Update
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -673,8 +672,6 @@ const VendorPortal: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>
-        </Dialog>
 
         {/* Stock Status Dialog */}
         <Dialog open={stockStatusOpen} onClose={() => setStockStatusOpen(false)} maxWidth="md" fullWidth>
@@ -741,7 +738,7 @@ const VendorPortal: React.FC = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setStockStatusOpen(false)}>Cancel</Button>
-            <Button
+            <Button 
               variant="contained"
               onClick={() => {
                 if (selectedCause) {
@@ -766,6 +763,7 @@ const VendorPortal: React.FC = () => {
             </Button>
           </DialogActions>
         </Dialog>
+      </Box>
     </Container>
   )
 }
