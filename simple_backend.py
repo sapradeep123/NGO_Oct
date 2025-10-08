@@ -2801,56 +2801,58 @@ async def get_vendor_associations(request: Request):
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
     
-    # Get associated NGOs
+    # Get associated NGOs from ngo_vendor_associations
     associated_ngos = []
-    for ngo in ngos_storage:
-        if vendor_id in ngo.get("vendor_associations", []):
+    vendor_associations = [a for a in ngo_vendor_associations if a["vendor_id"] == vendor_id and a["status"] == "ACTIVE"]
+    
+    for assoc in vendor_associations:
+        ngo = next((n for n in ngos_storage if n["id"] == assoc["ngo_id"]), None)
+        category = next((c for c in categories_storage if c["id"] == assoc["category_id"]), None)
+        
+        if ngo:
             associated_ngos.append({
                 "id": ngo["id"],
                 "name": ngo["name"],
                 "slug": ngo["slug"],
                 "contact_email": ngo["contact_email"],
-                "contact_phone": ngo["contact_phone"],
+                "phone": ngo.get("phone", ""),
                 "website_url": ngo.get("website_url", ""),
-                "logo_url": ngo.get("logo_url", "")
+                "logo_url": ngo.get("logo_url", ""),
+                "category_id": assoc["category_id"],
+                "category_name": category["name"] if category else "Unknown Category",
+                "association_created_at": assoc["created_at"]
             })
     
-    # Get associated causes
+    # Get associated causes (causes that have orders from this vendor)
     associated_causes = []
-    for cause in causes_storage:
-        if cause["status"] == "LIVE":
-            # Check if vendor has orders for this cause
-            vendor_orders_for_cause = [o for o in orders_storage if o["cause_id"] == cause["id"] and o["vendor_id"] == vendor_id]
-            if vendor_orders_for_cause:
-                associated_causes.append({
-                    "id": cause["id"],
-                    "title": cause["title"],
-                    "description": cause["description"],
-                    "ngo_id": cause["ngo_ids"][0] if cause["ngo_ids"] else None,
-                    "ngo_name": cause["ngo_name"],
-                    "category_name": cause["category_name"],
-                    "target_amount": cause["target_amount"],
-                    "current_amount": cause["current_amount"],
-                    "image_url": cause["image_url"],
-                    "order_count": len(vendor_orders_for_cause),
-                    "last_order_date": max([o["created_at"] for o in vendor_orders_for_cause]) if vendor_orders_for_cause else None
-                })
+    vendor_orders = [o for o in orders_storage if o["vendor_id"] == vendor_id]
+    cause_ids_with_orders = list(set([o["cause_id"] for o in vendor_orders]))
+    
+    for cause_id in cause_ids_with_orders:
+        cause = next((c for c in causes_storage if c["id"] == cause_id), None)
+        if cause and cause["status"] == "LIVE":
+            vendor_orders_for_cause = [o for o in vendor_orders if o["cause_id"] == cause_id]
+            associated_causes.append({
+                "id": cause["id"],
+                "title": cause["title"],
+                "description": cause["description"],
+                "ngo_id": cause["ngo_ids"][0] if cause["ngo_ids"] else None,
+                "ngo_name": cause["ngo_name"],
+                "category_name": cause["category_name"],
+                "target_amount": cause["target_amount"],
+                "current_amount": cause["current_amount"],
+                "image_url": cause["image_url"],
+                "order_count": len(vendor_orders_for_cause),
+                "latest_order_date": max([o["created_at"] for o in vendor_orders_for_cause]) if vendor_orders_for_cause else None
+            })
     
     return {
-        "vendor": {
-            "id": vendor["id"],
-            "name": vendor["name"],
-            "category": vendor["category"],
-            "contact_email": vendor["contact_email"],
-            "contact_phone": vendor["contact_phone"]
-        },
+        "vendor_id": vendor_id,
+        "vendor_name": vendor["name"],
         "associated_ngos": associated_ngos,
         "associated_causes": associated_causes,
-        "summary": {
-            "total_ngos": len(associated_ngos),
-            "total_causes": len(associated_causes),
-            "total_orders": len([o for o in orders_storage if o["vendor_id"] == vendor_id])
-        }
+        "total_ngos": len(associated_ngos),
+        "total_causes": len(associated_causes)
     }
 
 @app.post("/vendor/stock-status")
