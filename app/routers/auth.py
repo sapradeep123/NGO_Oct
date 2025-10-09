@@ -77,6 +77,48 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 
 @router.get("/me", response_model=UserSchema)
-def read_users_me(current_user: User = Depends(get_current_active_user)):
-    """Get current user profile"""
-    return current_user
+def read_users_me(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    """Get current user profile with role information"""
+    from app.models import Membership, Tenant, Vendor
+    
+    # Get user's primary membership (first one)
+    membership = db.query(Membership).filter(Membership.user_id == current_user.id).first()
+    
+    # Create response dict
+    user_dict = {
+        "id": current_user.id,
+        "email": current_user.email,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "phone": current_user.phone,
+        "is_active": current_user.is_active,
+        "created_at": current_user.created_at,
+        "role": None,
+        "ngo_id": None,
+        "ngo_name": None,
+        "vendor_id": None,
+        "vendor_name": None
+    }
+    
+    if membership:
+        user_dict["role"] = membership.role.value
+        
+        # Get tenant/NGO information if applicable
+        if membership.role in ["NGO_ADMIN", "NGO_STAFF"]:
+            tenant = db.query(Tenant).filter(Tenant.id == membership.tenant_id).first()
+            if tenant:
+                user_dict["ngo_id"] = tenant.id
+                user_dict["ngo_name"] = tenant.name
+        
+        # Get vendor information if applicable
+        elif membership.role == "VENDOR":
+            vendor = db.query(Vendor).filter(Vendor.tenant_id == membership.tenant_id).first()
+            if vendor:
+                user_dict["vendor_id"] = vendor.id
+                user_dict["vendor_name"] = vendor.name
+                user_dict["ngo_id"] = membership.tenant_id
+                tenant = db.query(Tenant).filter(Tenant.id == membership.tenant_id).first()
+                if tenant:
+                    user_dict["ngo_name"] = tenant.name
+    
+    return user_dict

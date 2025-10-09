@@ -16,15 +16,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
-    # CORS
-    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
-    ALLOWED_ORIGINS_LIST: List[str] = []
+    # CORS - Store as string, will be parsed to list
+    # Default to localhost for development, override in production
+    ALLOWED_ORIGINS: str = "*"  # Will be overridden by .env in production
     
     # External
-    EXTERNAL_BASE_URL: str = ""
+    EXTERNAL_BASE_URL: str = ""  # Should be set in .env for production
     
     # S3/MinIO
-    S3_ENDPOINT: str = "http://minio:9000"
+    S3_ENDPOINT: str = ""  # Should be set in .env if using S3/MinIO
     S3_BUCKET: str = "ngo-app"
     S3_ACCESS_KEY: str = ""
     S3_SECRET_KEY: str = ""
@@ -42,14 +42,13 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
         extra = "ignore"
-        
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Parse ALLOWED_ORIGINS from comma-separated string
-        if isinstance(self.ALLOWED_ORIGINS, str):
-            self.ALLOWED_ORIGINS_LIST = [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
-        else:
-            self.ALLOWED_ORIGINS_LIST = []
+    
+    @property
+    def ALLOWED_ORIGINS_LIST(self) -> List[str]:
+        """Parse ALLOWED_ORIGINS string into a list"""
+        if isinstance(self.ALLOWED_ORIGINS, str) and self.ALLOWED_ORIGINS:
+            return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+        return []
 
 
 settings = Settings()

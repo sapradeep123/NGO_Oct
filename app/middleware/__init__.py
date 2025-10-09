@@ -1,4 +1,4 @@
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
@@ -42,3 +42,26 @@ class TenantMiddleware(BaseHTTPMiddleware):
             return None
         finally:
             db.close()
+
+
+class ModeResolutionMiddleware(BaseHTTPMiddleware):
+    """Middleware for microsite/marketplace mode resolution"""
+    
+    async def dispatch(self, request: Request, call_next):
+        # Determine mode based on tenant
+        tenant = getattr(request.state, 'tenant', None)
+        
+        if tenant:
+            request.state.mode = "MICROSITE"
+            request.state.tenant_theme = {
+                "primary_color": "#2563eb",
+                "logo_url": tenant.logo_url,
+                "brand_name": tenant.name,
+                "website_url": tenant.website_url
+            }
+        else:
+            request.state.mode = "MARKETPLACE"
+            request.state.tenant_theme = None
+        
+        response = await call_next(request)
+        return response

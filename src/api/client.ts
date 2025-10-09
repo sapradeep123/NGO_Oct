@@ -140,12 +140,28 @@ class ApiClient {
   private client: AxiosInstance
   private baseURL: string
 
+  private getDefaultBaseURL(): string {
+    // Determine base URL based on environment
+    // In production, use same origin (protocol + hostname)
+    // In development with different ports, use localhost:8000
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    
+    if (isDev && window.location.port === '5173') {
+      // Development mode with Vite (port 5173) - connect to backend on port 8000
+      return `${window.location.protocol}//${window.location.hostname}:8000`
+    }
+    
+    // Production or same-origin deployment - use same protocol and hostname
+    return `${window.location.protocol}//${window.location.hostname}`
+  }
+
   constructor() {
-    // Use environment variable or fallback to localhost for development
+    // Dynamically determine API base URL without hardcoding
+    // Priority: 1) Environment variable, 2) Runtime config from server, 3) Same origin
     this.baseURL = (import.meta as any).env?.VITE_API_BASE_URL || 
-                   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-                    ? 'http://localhost:8002' 
-                    : `${window.location.protocol}//${window.location.hostname}:8002`)
+                   this.getDefaultBaseURL()
+    
+    console.log('API Base URL:', this.baseURL)
     this.client = axios.create({
       baseURL: this.baseURL,
       headers: {
@@ -203,23 +219,23 @@ class ApiClient {
 
   // Public endpoints
   async getCategories(): Promise<Category[]> {
-    const response: AxiosResponse<{ value: Category[]; Count: number }> = await this.client.get('/public/categories')
-    return response.data.value || []
+    const response = await this.client.get('/public/categories')
+    return response.data || []
   }
 
   async getNGOs(): Promise<Tenant[]> {
-    const response: AxiosResponse<{ value: Tenant[]; Count: number }> = await this.client.get('/public/ngos')
-    return response.data.value || []
+    const response = await this.client.get('/public/ngos')
+    return response.data || []
   }
 
   async getCauses(params?: { tenant?: string; status?: string; category?: string }): Promise<Cause[]> {
-    const response: AxiosResponse<{ value: Cause[]; Count: number }> = await this.client.get('/public/causes', { params })
-    return response.data.value || []
+    const response = await this.client.get('/public/causes', { params })
+    return response.data || []
   }
 
   async getAdminCauses(): Promise<Cause[]> {
-    const response: AxiosResponse<{ value: Cause[]; Count: number }> = await this.client.get('/admin/causes')
-    return response.data.value || []
+    const response = await this.client.get('/admin/causes')
+    return response.data || []
   }
 
   // Domain Management Methods
@@ -248,7 +264,7 @@ class ApiClient {
   }
 
   async getTenantBySlug(slug: string): Promise<Tenant> {
-    const response: AxiosResponse<Tenant> = await this.client.get(`/tenant/${slug}`)
+    const response: AxiosResponse<Tenant> = await this.client.get(`/public/tenants/${slug}`)
     return response.data
   }
 
@@ -344,24 +360,25 @@ class ApiClient {
 
   // Admin API methods
   async getAdminNGOs(): Promise<any[]> {
-    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/ngos')
-    return response.data.value || []
+    const response = await this.client.get('/admin/ngos')
+    return response.data?.value || response.data || []
   }
 
   async getAdminVendors(): Promise<any[]> {
-    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/vendors')
-    return response.data.value || []
+    const response = await this.client.get('/admin/vendors')
+    return response.data?.value || response.data || []
   }
 
   async getAdminDonors(): Promise<any[]> {
-    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/admin/donors')
-    return response.data.value || []
+    const response = await this.client.get('/admin/donors')
+    return response.data?.value || response.data || []
   }
 
   async getAdminPayments(): Promise<any> {
     const response = await this.client.get('/admin/payments')
-    return response.data
+    return response.data || {}
   }
+
 
   // Admin Management API methods
   async createNGO(data: any): Promise<any> {
@@ -607,13 +624,13 @@ class ApiClient {
 
   // Donor Order API methods
   async getDonorOrders(): Promise<any[]> {
-    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/donor/orders')
-    return response.data.value || []
+    const response = await this.client.get('/donor/orders')
+    return response.data || []
   }
 
   async getNgoOrders(): Promise<any[]> {
-    const response: AxiosResponse<{ value: any[]; Count: number }> = await this.client.get('/ngo/orders')
-    return response.data.value || []
+    const response = await this.client.get('/ngo/orders')
+    return response.data || []
   }
 
   async confirmOrderDelivery(orderId: number): Promise<any> {
@@ -723,7 +740,7 @@ class ApiClient {
   // Donation History API methods
   async getDonorDonations(): Promise<any[]> {
     const response = await this.client.get('/donor/donations')
-    return response.data.value || []
+    return response.data || []
   }
 
   async getDonorDonationsByNgo(ngoSlug: string): Promise<any> {

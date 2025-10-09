@@ -1,217 +1,383 @@
 # NGO Donations Platform
 
-A comprehensive platform for managing NGO donations, vendor relationships, and cause management with proper account reconciliation and reporting.
+A multi-tenant NGO donations platform built with FastAPI (Python) and React (TypeScript).
 
-## 🚀 Features
-
-### Core Functionality
-- **Multi-Role System**: Admin, NGO, Vendor, Donor roles with specific dashboards
-- **Cause Management**: Create, approve, and manage donation causes
-- **NGO-Vendor Associations**: Many-to-many relationships across categories
-- **Category Management**: Organized cause categorization system
-- **Account Reconciliation**: Comprehensive financial tracking and reporting
-
-### 🆕 New Interactive Features
-- **NGO Microsite**: Independent, branded websites for each NGO
-- **About Us Management**: NGO Admins can edit mission, vision, values, team
-- **Contact Page Management**: Manage contact info, departments, office hours
-- **Photo Gallery**: Upload and manage NGO photos with professional display
-- **End-to-End Donations**: Complete donation workflow with transaction tracking
-- **Real-time Data**: All microsite content updates from NGO Admin changes
-- **Professional Design**: Clean, NGO-branded experience with smooth navigation
-
-### Key Workflows
-1. **Category Creation** → **NGO Registration** → **Vendor Association** → **Cause Creation** → **Admin Approval** → **Live Donations**
-2. **Multi-Category Support**: NGOs can work with different vendors for different categories
-3. **Approval Process**: All causes require admin approval before going live
-4. **Financial Tracking**: Complete donation tracking and vendor payment management
-
-## 🌐 NGO Microsite Features
-
-### For NGO Admins
-1. **Login**: Use NGO Admin credentials (e.g., `ngo.hope-trust.admin@example.com` / `Ngo@123`)
-2. **Dashboard Management**:
-   - **About Us Page**: Edit mission, vision, values, team members
-   - **Contact Page**: Manage phone, office hours, departments, social media
-   - **Photo Gallery**: Upload, view, and manage NGO photos
-   - **Preview Microsite**: See how the public microsite will look
-
-### For Public Users
-1. **Access**: Visit `{FRONTEND_URL}/microsite/{ngo-slug}` (e.g., `/microsite/hope-trust`)
-2. **Features**:
-   - **Real Causes**: View only that NGO's causes (no other NGO data)
-   - **Donation Workflow**: Complete donation process with transaction tracking
-   - **Professional Design**: Clean, NGO-branded experience
-   - **Smooth Navigation**: About Us, Contact, Gallery sections
-   - **Responsive**: Works on all devices
-
-### Key URLs
-- **Main Platform**: `{FRONTEND_URL}`
-- **Hope Trust Microsite**: `{FRONTEND_URL}/microsite/hope-trust`
-- **Care Works Microsite**: `{FRONTEND_URL}/microsite/care-works`
-- **Health First Microsite**: `{FRONTEND_URL}/microsite/health-first`
-
-## 🏗️ Architecture
-
-### Frontend (React + TypeScript)
-- **React 18** with TypeScript
-- **Material-UI** for modern UI components
-- **React Query** for data fetching and caching
-- **React Router** for navigation
-- **Axios** for API communication
-
-### Backend (Python + FastAPI)
-- **FastAPI** for high-performance API
-- **Pydantic** for data validation
-- **CORS** enabled for frontend communication
-- **In-memory storage** for development (easily replaceable with database)
-
-## 📁 Project Structure
-
-```
-NGO_Oct/
-├── src/
-│   ├── components/          # Reusable UI components
-│   ├── pages/              # Main application pages
-│   ├── auth/               # Authentication context
-│   ├── api/                # API client and types
-│   └── contexts/           # React contexts
-├── app/                    # Backend application (if using full FastAPI)
-├── simple_backend.py       # Development backend server
-├── requirements.txt        # Python dependencies
-├── package.json           # Node.js dependencies
-└── README.md              # This file
-```
-
-## 🛠️ Setup Instructions
+## 🚀 Quick Start for Teammates
 
 ### Prerequisites
-- Node.js 18+ and npm
-- Python 3.8+
-- Git
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL 15+
+- Docker (for database)
 
-### Frontend Setup
+### 1. Clone Repository
+```bash
+git clone <your-repo-url>
+cd ngo-platform
+```
+
+### 2. Start Database (Docker)
+```bash
+docker compose up -d
+```
+
+### 3. Setup Backend
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file (IMPORTANT!)
+copy .env.production.example .env
+
+# Edit .env with your local settings
+# Required: DATABASE_URL, SECRET_KEY, ALLOWED_ORIGINS
+
+# Run migrations
+alembic upgrade head
+
+# Seed database (optional)
+python seed.py
+```
+
+### 4. Setup Frontend
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Create .env.local (optional - auto-detects API)
+echo "VITE_API_BASE_URL=http://localhost:8000" > .env.local
+```
+
+### 5. Start Development Servers
+
+**Option 1: Using PowerShell Scripts (Recommended)**
+```powershell
+# Terminal 1: Start Backend
+.\start_backend.ps1
+
+# Terminal 2: Start Frontend
+.\start_frontend.ps1
+```
+
+**Option 2: Manual Start**
+```bash
+# Terminal 1: Backend
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2: Frontend
 npm run dev
 ```
 
-### Backend Setup
-```bash
-# Install Python dependencies
-pip install -r requirements.txt
+### 6. Access Application
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8000
+- **API Docs**: http://localhost:8000/docs
+- **pgAdmin**: http://localhost:5050 (admin@example.com / admin123)
 
-# Start backend server
-python simple_backend.py
+## 🔑 Demo Login Credentials
+
+After seeding the database:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Platform Admin | admin@example.com | Admin@123 |
+| NGO Admin | ngo.hope.admin@example.com | Ngo@123 |
+| NGO Staff | ngo.hope.staff@example.com | Staff@123 |
+| Vendor | vendor.alpha@example.com | Vendor@123 |
+| Donor | donor.arya@example.com | Donor@123 |
+
+## ⚙️ Configuration
+
+### Backend (.env)
+**Required variables:**
+```env
+APP_ENV=dev
+DATABASE_URL=postgresql://postgres:postgres%40123@localhost:5432/ngo_db
+SECRET_KEY=your-secret-key-here
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+EXTERNAL_BASE_URL=http://localhost:8000
 ```
 
-### Access Points
-- **Frontend**: `{FRONTEND_URL}` (default: http://localhost:5173)
-- **Backend API**: `{API_URL}` (default: http://localhost:8002)
-- **API Documentation**: `{API_URL}/docs`
+**Note:** Special characters in password must be URL-encoded! 
+- `@` → `%40`
+- `#` → `%23`
 
-## 👥 User Roles & Credentials
+### Frontend (.env.local)
+**Optional - auto-detects if not set:**
+```env
+VITE_API_BASE_URL=http://localhost:8000
+```
 
-### Admin Console
-- **Email**: admin@example.com
-- **Password**: Admin@123
-- **Access**: Full platform management, cause approval, NGO/Vendor management
+## 📚 Documentation
 
-### Demo Users
-- **NGO**: ngo@example.com / ngo123
-- **Vendor**: vendor@example.com / vendor123
-- **Donor**: donor@example.com / donor123
+### Setup & Development
+- **`START_APP.md`** - Complete startup guide
+- **`SETUP_COMPLETE.md`** - Detailed setup documentation
+- **`RUN.md`** - Original run instructions
 
-## 🔧 Key Features Implemented
+### Fixes & Solutions
+- **`DASHBOARD_FIX.md`** - Database connection fix
+- **`USER_ROLE_FIX.md`** - User role resolution fix
+- **`DATA_SYNC_FIX.md`** - Admin endpoints fix
+- **`MICROSITE_FIX.md`** - Microsite preview fix
 
-### 1. NGO-Vendor Association System
-- **Many-to-Many Relationships**: NGOs can work with multiple vendors
-- **Category-Based**: Associations are specific to cause categories
-- **Management Interface**: Complete CRUD operations for associations
-- **API Endpoints**: Full REST API for association management
+### Deployment
+- **`DEPLOYMENT_GUIDE.md`** - Complete Contabo deployment guide
+- **`CONTABO_QUICK_DEPLOY.md`** - Quick deployment checklist
+- **`NO_HARDCODED_VALUES.md`** - Production configuration guide
 
-### 2. Cause Management Workflow
-- **Creation**: NGOs create causes with category and vendor relationships
-- **Approval**: Admin approves causes before they go live
-- **Tracking**: Real-time donation tracking and progress monitoring
-- **Status Management**: Draft → Pending → Live → Funded → Fulfilled
+### Testing
+- **`TEST_RESULTS.md`** - End-to-end test results
 
-### 3. Account Reconciliation
-- **Financial Summary**: Total received, disbursed, platform commission
-- **Category Breakdown**: Donations and disbursements by category
-- **Vendor Payments**: Track vendor invoices and payments
-- **Audit Trail**: Complete transaction history
+## 🏗️ Architecture
 
-### 4. Multi-Category Support
-- **Flexible Categories**: Create and manage cause categories
-- **Vendor Specialization**: Vendors can specialize in specific categories
-- **NGO Flexibility**: NGOs can work across multiple categories
-- **Proper Relationships**: All entities properly linked and tracked
+```
+NGO Donations Platform
+├── Backend (FastAPI - Python)
+│   ├── app/
+│   │   ├── routers/       # API endpoints
+│   │   ├── models.py      # Database models
+│   │   ├── schemas/       # Pydantic schemas
+│   │   ├── core/          # Configuration & database
+│   │   ├── middleware/    # Custom middleware
+│   │   └── main.py        # FastAPI app
+│   ├── alembic/           # Database migrations
+│   └── requirements.txt   # Python dependencies
+│
+├── Frontend (React + TypeScript)
+│   ├── src/
+│   │   ├── pages/         # React pages
+│   │   ├── components/    # Reusable components
+│   │   ├── api/           # API client
+│   │   └── main.tsx       # Entry point
+│   ├── package.json       # Node dependencies
+│   └── vite.config.ts     # Vite configuration
+│
+└── Database (PostgreSQL)
+    └── docker-compose.yml # Docker setup
+```
 
-## 📊 Sample Data
+## 🔧 Common Issues & Solutions
 
-The platform includes comprehensive sample data:
-- **5 Categories**: Food & Nutrition, Education, Healthcare, Emergency Relief, Women & Children
-- **3 NGOs**: Hope Trust, Care Works, Health First Foundation
-- **3 Vendors**: Alpha Supplies, Beta Medical, Gamma Educational
-- **5 Live Causes**: Across different categories with proper relationships
-- **NGO-Vendor Associations**: Multi-category vendor relationships
+### 1. Database Connection Failed
+**Problem:** `could not translate host name "123@localhost"`
 
-## 🔄 API Endpoints
+**Solution:** URL-encode the password in `.env`:
+```env
+# If password is: postgres@123
+DATABASE_URL=postgresql://postgres:postgres%40123@localhost:5432/ngo_db
+```
 
-### Public Endpoints
-- `GET /public/categories` - Get all categories
-- `GET /public/ngos` - Get all NGOs
-- `GET /public/causes` - Get live causes
+### 2. Dashboards Not Visible
+**Problem:** User role showing as `undefined`
 
-### Admin Endpoints
-- `POST /admin/categories` - Create category
-- `POST /admin/ngos` - Create NGO
-- `POST /admin/vendors` - Create vendor
-- `POST /admin/causes` - Create cause
-- `GET /admin/pending-causes` - Get pending causes
-- `POST /admin/causes/{id}/approve` - Approve cause
-- `GET /admin/ngo-vendor-associations` - Get associations
-- `POST /admin/ngo-vendor-associations` - Create association
+**Solution:** Already fixed! The `/auth/me` endpoint now returns user role from membership table.
 
-### Authentication
-- `POST /auth/login` - User login
-- `GET /auth/me` - Get current user
+### 3. No Data in Admin Console
+**Problem:** Admin endpoints returning empty arrays
 
-## 🚀 Deployment
+**Solution:** Already fixed! Real admin endpoints created in `app/routers/admin.py`
 
-### Development
-- Frontend runs on Vite dev server (port 5173)
-- Backend runs on FastAPI (port 8000)
-- Hot reload enabled for both frontend and backend
+### 4. Microsite Preview 404
+**Problem:** "Request failed with status code 404"
 
-### Production Ready
-- Backend can be deployed with any ASGI server (uvicorn, gunicorn)
-- Frontend builds to static files for any web server
-- Database integration ready (currently using in-memory storage)
+**Solution:** Already fixed! Frontend now calls `/public/tenants/{slug}` correctly
 
-## 🤝 Contributing
+### 5. CORS Errors
+**Problem:** Cross-origin request blocked
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+**Solution:** Update `ALLOWED_ORIGINS` in `.env`:
+```env
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+```
 
-## 📝 License
+### 6. Port Already in Use
+**Problem:** `Address already in use`
 
-This project is licensed under the MIT License.
+**Solution:**
+```bash
+# Windows - Kill process on port 8000
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
 
-## 🆘 Support
+# Or use different port
+uvicorn app.main:app --port 8001
+```
 
-For issues and questions:
-1. Check the GitHub Issues
-2. Review the API documentation at `/docs`
-3. Test with the provided sample data
+## 🧪 Testing
+
+### Run Backend Tests
+```bash
+pytest
+```
+
+### Test API Endpoints
+```bash
+# Health check
+curl http://localhost:8000/healthz
+
+# Get demo users
+curl http://localhost:8000/demo/users
+
+# Get categories
+curl http://localhost:8000/public/categories
+```
+
+### Test Frontend
+```bash
+npm run test
+```
+
+## 📦 Building for Production
+
+### Backend
+```bash
+# Already production-ready!
+# Just set environment variables in .env
+APP_ENV=prod
+DEBUG=false
+```
+
+### Frontend
+```bash
+# Build
+npm run build
+
+# Output in dist/ folder
+```
+
+## 🔄 Git Workflow
+
+### Pull Latest Changes
+```bash
+git pull origin master
+```
+
+### After Pulling
+```bash
+# Update backend dependencies
+pip install -r requirements.txt
+
+# Update frontend dependencies  
+npm install
+
+# Run any new migrations
+alembic upgrade head
+
+# Restart servers
+```
+
+## 🆘 Getting Help
+
+### Check Documentation
+1. Read `START_APP.md` for startup guide
+2. Check fix documentation for specific issues
+3. Review `DEPLOYMENT_GUIDE.md` for advanced setup
+
+### Debug Mode
+```bash
+# Backend with debug logs
+uvicorn app.main:app --log-level debug
+
+# Frontend with source maps
+npm run dev
+```
+
+### View Logs
+```bash
+# Backend logs (if using PM2)
+pm2 logs ngo-backend
+
+# Docker logs
+docker logs ngo_postgres
+```
+
+## 👥 Team Collaboration
+
+### Before Pushing Code
+```bash
+# Test locally
+npm run build          # Test frontend build
+python -m pytest       # Run backend tests
+
+# Check for errors
+npm run lint          # Frontend linting
+black app/            # Backend formatting
+```
+
+### Commit Messages
+Use clear, descriptive commit messages:
+```bash
+git commit -m "fix: resolve database connection issue with URL encoding"
+git commit -m "feat: add admin endpoints for data synchronization"
+git commit -m "docs: update setup guide with troubleshooting"
+```
+
+## 📋 Environment Variables Reference
+
+### Backend Required
+- `APP_ENV` - Environment (dev/prod)
+- `DATABASE_URL` - PostgreSQL connection string
+- `SECRET_KEY` - JWT secret key
+- `ALLOWED_ORIGINS` - CORS allowed origins
+- `EXTERNAL_BASE_URL` - API base URL
+
+### Backend Optional
+- `RAZORPAY_KEY_ID` - Payment gateway key
+- `RAZORPAY_KEY_SECRET` - Payment gateway secret
+- `S3_ENDPOINT` - File storage endpoint
+- `S3_BUCKET` - S3 bucket name
+- `S3_ACCESS_KEY` - S3 access key
+- `S3_SECRET_KEY` - S3 secret key
+
+### Frontend Optional
+- `VITE_API_BASE_URL` - Backend API URL (auto-detects if not set)
+
+## 🚀 Recent Major Fixes
+
+### ✅ Database Connection (DASHBOARD_FIX.md)
+- Fixed URL encoding for special characters in password
+- Password `postgres@123` → `postgres%40123`
+
+### ✅ User Role Resolution (USER_ROLE_FIX.md)
+- Enhanced `/auth/me` to return user role from membership
+- Dashboards now load correctly for all user types
+
+### ✅ Data Synchronization (DATA_SYNC_FIX.md)
+- Created complete admin router with real database queries
+- NGO admins can see vendors, vendors can see NGOs
+- All dashboard data now syncing correctly
+
+### ✅ Microsite Preview (MICROSITE_FIX.md)
+- Fixed API endpoint from `/tenant/{slug}` to `/public/tenants/{slug}`
+- Microsite preview now working
+
+### ✅ Production Ready (NO_HARDCODED_VALUES.md)
+- Removed all hardcoded values
+- 100% environment-based configuration
+- Ready for Contabo deployment
+
+## 📞 Support
+
+For issues or questions:
+1. Check documentation in repository
+2. Review fix documentation for known issues
+3. Contact team lead
+4. Create GitHub issue with details
 
 ---
 
-**Built with ❤️ for NGO management and donation tracking**
+**Status:** ✅ Production Ready  
+**Latest Update:** All major fixes applied  
+**Deployment:** Ready for Contabo  
+
+Happy Coding! 🎉

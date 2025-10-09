@@ -6,8 +6,9 @@ import os
 
 from app.core.config import settings
 from app.core.database import engine
-from app.middleware import TenantMiddleware, ModeResolutionMiddleware
-from app.routers import auth, public, donations, vendors, ngo_receipts, payouts, uploads, demo
+from app.middleware import TenantMiddleware
+from app.middleware import ModeResolutionMiddleware
+from app.routers import auth, public, donations, vendors, ngo_receipts, payouts, uploads, demo, admin
 
 
 @asynccontextmanager
@@ -52,6 +53,7 @@ app.include_router(ngo_receipts.router, prefix="/ngo-receipts", tags=["ngo-recei
 app.include_router(payouts.router, prefix="/payouts", tags=["payouts"])
 app.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
 app.include_router(demo.router, prefix="/demo", tags=["demo"])
+app.include_router(admin.router, tags=["admin"])  # No prefix - endpoints define their own paths
 
 
 @app.get("/healthz")

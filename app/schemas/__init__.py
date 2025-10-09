@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-from email_validator import EmailStr
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
@@ -31,6 +30,11 @@ class User(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+    role: Optional[str] = None
+    ngo_id: Optional[int] = None
+    ngo_name: Optional[str] = None
+    vendor_id: Optional[int] = None
+    vendor_name: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -430,3 +434,15 @@ class TenantByHostResponse(BaseModel):
 
 class RuntimeConfig(BaseModel):
     apiBaseUrl: str
+
+
+# Demo schemas
+class DemoUser(BaseModel):
+    email: str
+    password: str
+    role: str
+    description: str
+
+
+class DemoUsersResponse(BaseModel):
+    users: List[DemoUser]
